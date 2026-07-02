@@ -33,8 +33,6 @@ vitest.config.ts
 *.log
 .DS_Store
 
-# Site template ships as source; never ship its installed deps or build output.
-
 # Marketing-site is for the project landing page only; never goes to npm.
 marketing-site/
 

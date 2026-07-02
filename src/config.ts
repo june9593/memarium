@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
@@ -12,7 +13,11 @@ function configPath(): string { return join(configDir(), "config.json"); }
  *  pre-rename name) to `~/.memarium/` if the old one exists and the new one
  *  doesn't. Idempotent, best-effort. Covers config.json, session-repo/,
  *  aggregated/, usage/, local-proposals/ in one move, then rewrites the
- *  absolute `~/.vibebook/` paths stored inside config.json. Runs before reads. */
+ *  absolute `~/.vibebook/` paths stored inside config.json. Finally repairs
+ *  the `aggregated/` git worktree, whose absolute back-link to session-repo the
+ *  move staled (refreshAggregatedWorktree only rebuilds when `aggregated/.git`
+ *  is ABSENT, so a dangling link would silently break cross-device recall).
+ *  Runs before reads. */
 export function migrateLegacyConfigDir(): void {
   const legacy = join(homedir(), ".vibebook");
   const dir = configDir();
@@ -21,10 +26,22 @@ export function migrateLegacyConfigDir(): void {
     renameSync(legacy, dir);
     // Fix stored absolute paths (repoPath etc.) that pointed into ~/.vibebook.
     const p = configPath();
+    let repoPath = join(dir, "session-repo");
     if (existsSync(p)) {
       const raw = readFileSync(p, "utf8");
       const fixed = raw.split(legacy).join(dir);
       if (fixed !== raw) writeFileSync(p, fixed);
+      try {
+        const parsed = JSON.parse(fixed) as { repoPath?: string };
+        if (parsed.repoPath) repoPath = parsed.repoPath.replace(/^~(?=$|\/)/, homedir());
+      } catch { /* keep default repoPath */ }
+    }
+    // Repair the read-only aggregated worktree's absolute links (both the
+    // worktree's `.git` file and the session-repo's admin `gitdir`) so a later
+    // `memarium sync` can still refresh it instead of silently failing.
+    const agg = join(dir, "aggregated");
+    if (existsSync(agg)) {
+      spawnSync("git", ["-C", repoPath, "worktree", "repair", agg], { stdio: "ignore" });
     }
   } catch { /* best-effort */ }
 }

@@ -13,10 +13,13 @@ memory lives). This npm package is now published as `memarium`; the old
   (`migrateLegacyConfigDir`): the whole dir is moved and absolute `~/.vibebook/`
   paths stored inside `config.json` (e.g. `repoPath`) are rewritten.
 - **In-repo data dir**: `.vibebook/` → `.memarium/`. Auto-migrated on first
-  sync/digest (`migrateLegacyDataDir` now walks a `.vibebook/` → `.memvc/`
-  legacy chain via `git mv`, preserving history).
-- **CI**: `vibebook-aggregate.yml`/`vibebook-pages.yml` → `memarium-*.yml`;
-  `merge-books.mjs` + env vars (`VIBEBOOK_LOCALE` → `MEMARIUM_LOCALE`, etc.).
+  sync/digest (`migrateLegacyDataDir` walks the legacy chain — `.vibebook/`,
+  else `.memvc/` — to `.memarium/` via `git mv`, preserving history).
+- **CI**: `vibebook-aggregate.yml` → `memarium-aggregate.yml`; `merge-books.mjs`
+  + env vars (`VIBEBOOK_LOCALE` → `MEMARIUM_LOCALE`, etc.). The dead
+  `vibebook-pages.yml` book-site workflow, the `workflow pages-init` command,
+  and `site-template/` were **removed** — the npm-side `build-site`/`serve`
+  commands moved to the plugin back in 0.5, leaving that path broken.
 - Internals: config paths now resolve lazily from `$HOME` (more robust; also
   fixes a latent test-isolation issue).
 

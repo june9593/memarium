@@ -43,8 +43,9 @@ export interface SyncResult {
 }
 
 export async function runSync(opts: SyncOptions): Promise<SyncResult> {
-  // One-shot migration: rename legacy `.memvc/` → `.memarium/` if present.
-  // Done before loadIndex so the read picks up the file at its new location.
+  // One-shot migration: rename the newest legacy data dir (`.vibebook/`, else
+  // `.memvc/`) → `.memarium/` if present. Done before loadIndex so the read
+  // picks up the file at its new location.
   const dataDirMig = await migrateLegacyDataDir(opts.repoPath);
   if (dataDirMig.migrated) {
     console.log(chalk.cyan(`Migrating: renamed legacy ${dataDirMig.from}/ → .memarium/ ${dataDirMig.viaGit ? "(via git mv; staged for next commit)" : "(non-git mode)"}`));
