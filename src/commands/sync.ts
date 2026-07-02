@@ -184,8 +184,8 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
     }
     console.log(chalk.gray(`Staging ${all.length} paths and committing...`));
     const commitMsg = newCount > 0
-      ? `memarium sync: +${newCount} sessions${dataDirMig.migrated ? " (+ rename .memvc/→.memarium/)" : ""}`
-      : (dataDirMig.migrated ? "memarium: rename .memvc/ → .memarium/" :
+      ? `memarium sync: +${newCount} sessions${dataDirMig.migrated ? ` (+ rename ${dataDirMig.from}/→.memarium/)` : ""}`
+      : (dataDirMig.migrated ? `memarium: rename ${dataDirMig.from}/ → .memarium/` :
          `memarium sync: +${newCount} sessions`);
     const r = await commitAndPush(
       git,
