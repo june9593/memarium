@@ -228,7 +228,16 @@ export async function doctorCmd(): Promise<void> {
         } else {
           const overlayHead = gitRevParse(aggPath, "HEAD");
           const originMain = gitRevParse(config.repoPath, "origin/main");
-          if (overlayHead && originMain && overlayHead !== originMain) {
+          if (!overlayHead) {
+            // Dir exists but HEAD won't resolve → broken/orphaned worktree.
+            // The whole point of this check is to surface silently-broken
+            // cross-device recall, so don't mask it as ok.
+            checks.push({
+              name: "Cross-device overlay", status: "warn",
+              detail: "overlay present but its HEAD can't be resolved (broken/orphaned worktree) — cross-device recall may be silently broken",
+              fix: "vibebook sync   # rebuild the overlay",
+            });
+          } else if (originMain && overlayHead !== originMain) {
             checks.push({
               name: "Cross-device overlay", status: "warn",
               detail: "overlay is behind origin/main — cross-device recall may miss recent sibling-device memory",
@@ -237,7 +246,7 @@ export async function doctorCmd(): Promise<void> {
           } else {
             checks.push({
               name: "Cross-device overlay", status: "ok",
-              detail: overlayHead ? "present + in sync with origin/main" : "present",
+              detail: originMain ? "present + in sync with origin/main" : "present",
             });
           }
         }
