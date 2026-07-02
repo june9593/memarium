@@ -24,12 +24,14 @@ export function migrateLegacyConfigDir(): void {
   if (existsSync(dir) || !existsSync(legacy)) return;
   try {
     renameSync(legacy, dir);
-    // Fix stored absolute paths (repoPath etc.) that pointed into ~/.vibebook.
+    // Fix stored paths (repoPath etc.) that pointed into ~/.vibebook — both the
+    // expanded form (`/home/u/.vibebook`) and the literal-tilde form
+    // (`~/.vibebook`) that config.json may legally store.
     const p = configPath();
     let repoPath = join(dir, "session-repo");
     if (existsSync(p)) {
       const raw = readFileSync(p, "utf8");
-      const fixed = raw.split(legacy).join(dir);
+      const fixed = raw.split(legacy).join(dir).split("~/.vibebook").join("~/.memarium");
       if (fixed !== raw) writeFileSync(p, fixed);
       try {
         const parsed = JSON.parse(fixed) as { repoPath?: string };
@@ -39,9 +41,10 @@ export function migrateLegacyConfigDir(): void {
     // Repair the read-only aggregated worktree's absolute links (both the
     // worktree's `.git` file and the session-repo's admin `gitdir`) so a later
     // `memarium sync` can still refresh it instead of silently failing.
+    // Bounded so a hung git can't stall the SessionStart migration path.
     const agg = join(dir, "aggregated");
     if (existsSync(agg)) {
-      spawnSync("git", ["-C", repoPath, "worktree", "repair", agg], { stdio: "ignore" });
+      spawnSync("git", ["-C", repoPath, "worktree", "repair", agg], { stdio: "ignore", timeout: 10_000 });
     }
   } catch { /* best-effort */ }
 }
