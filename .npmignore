@@ -34,10 +34,6 @@ vitest.config.ts
 .DS_Store
 
 # Site template ships as source; never ship its installed deps or build output.
-site-template/node_modules/
-site-template/dist/
-site-template/.astro/
-site-template/package-lock.json
 
 # Marketing-site is for the project landing page only; never goes to npm.
 marketing-site/

@@ -56,7 +56,6 @@ assets/
   workflows/memarium-aggregate.yml   # template; `memarium workflow init` writes it to main
   scripts/merge-books.mjs            # CI aggregator — unions book/ + raw_sessions/ from device branches
 
-site-template/                       # Astro source for `memarium build-site` (kept for parity)
 marketing-site/                      # project landing page (live at Pages)
 ```
 
@@ -144,8 +143,11 @@ Bump rules:
   publish accidentally shipped 21 stale files). Don't remove the `clean`
   script.
 - `dist/` is `.gitignore`'d but in `npm pack`; don't add it to `.npmignore`.
-- `site-template/node_modules` is huge; `.npmignore` excludes it. Don't
-  remove that line.
+- The book reading site (`build-site` / `serve`) lives in the **plugin**,
+  not here — those commands moved to memarium-plugin in 0.5. The dead
+  npm-side `site-template/` + `workflow pages-init` were removed in 0.13.0.
+  Don't re-add a book-site builder to this repo; `marketing-site/` (the
+  project landing page) is unrelated and stays.
 - Don't add `docs/` back to git — it was untracked on 2026-04-29 to
   open-source the repo. `docs/superpowers/roadmap.md` is Yue's local
   working notes; never `git add docs/`.

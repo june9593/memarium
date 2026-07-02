@@ -87,16 +87,6 @@ export async function run(argv: string[]) {
           // commander's --no-X sets opts.X=false when flag present, true otherwise.
           await workflowInitCmd({ force: opts.force, noPush: opts.push === false });
         }),
-    )
-    .addCommand(
-      new Command("pages-init")
-        .description("Write .github/workflows/memarium-pages.yml — builds the static site and publishes to GitHub Pages on every push to main.")
-        .option("--force", "overwrite if file already exists")
-        .option("--no-push", "write the file locally but don't auto commit + push to main")
-        .action(async (opts: { force?: boolean; push?: boolean }) => {
-          const { workflowPagesInitCmd } = await import("./commands/workflow.js");
-          await workflowPagesInitCmd({ force: opts.force, noPush: opts.push === false });
-        }),
     );
   program
     .command("list")
