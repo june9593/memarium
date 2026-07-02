@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.1 — 2026-07-02
+
+**Fix: harden the `~/.vibebook` → `~/.memarium` config-dir migration.** Follow-up to 0.13.0's rename:
+
+- **Aggregated worktree repair.** The bulk `renameSync` staled the read-only `aggregated/` worktree's *absolute* back-link to `session-repo`. `refreshAggregatedWorktree` only rebuilds when `aggregated/.git` is absent, so the dangling link silently degraded cross-device recall until a manual `rm`. Now `git worktree repair` runs after the move.
+- **Tilde repoPath.** `config.json` may legally store `repoPath` as `~/.vibebook/session-repo`. The move only rewrote the *expanded* path, so a tilde path stayed pointing at the old (moved-away) dir. Both the expanded and literal-`~` forms are now rewritten.
+- **Bounded git spawn.** The `git worktree repair` `spawnSync` now has a 10s timeout so a hung git can't stall the migration path (which runs before reads).
+
++5 tests. Mirrored in `memarium-plugin` 0.13.1.
+
 ## 0.13.0 — 2026-07-02
 
 ### Renamed: vibebook → **memarium**
