@@ -34,7 +34,7 @@ export interface ResumeResult {
 }
 
 /**
- * `vibebook resume <id>` — find the source session's markdown, build a prompt
+ * `memarium resume <id>` — find the source session's markdown, build a prompt
  * with the conversation history, and launch a fresh `claude` session with
  * that prompt as the first user turn. The new Claude reads the prior context
  * and asks the user what to continue with.
@@ -63,7 +63,7 @@ export async function resumeCmd(opts: ResumeOptions): Promise<ResumeResult> {
   if (matches.length === 0) {
     throw new Error(
       `No session matches '${opts.idOrPrefix}'. ` +
-      `Run 'vibebook list-sessions' to see what's available.`,
+      `Run 'memarium list-sessions' to see what's available.`,
     );
   }
   if (matches.length > 1) {
@@ -100,7 +100,7 @@ export async function resumeCmd(opts: ResumeOptions): Promise<ResumeResult> {
       `Context md missing: ${mdPath}. ` +
       (isOwn
         ? `The source device may not have synced this session yet, or you're on a 0.5.x spool that hasn't been re-synced under 0.6.`
-        : `This is a sibling-device session — run \`vibebook sync\` to refresh the aggregated worktree.`),
+        : `This is a sibling-device session — run \`memarium sync\` to refresh the aggregated worktree.`),
     );
   }
   const contextMd = readFileSync(mdPath, "utf8");

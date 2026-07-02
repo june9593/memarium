@@ -11,11 +11,11 @@ describe("listSessionsCmd", () => {
     vi.stubEnv("HOME", fakeHome);
     vi.resetModules();
     // Plant a config that points at a spool inside fakeHome
-    const repoPath = join(fakeHome, ".vibebook/session-repo");
-    mkdirSync(join(repoPath, ".vibebook"), { recursive: true });
-    mkdirSync(join(fakeHome, ".vibebook"), { recursive: true });
+    const repoPath = join(fakeHome, ".memarium/session-repo");
+    mkdirSync(join(repoPath, ".memarium"), { recursive: true });
+    mkdirSync(join(fakeHome, ".memarium"), { recursive: true });
     writeFileSync(
-      join(fakeHome, ".vibebook/config.json"),
+      join(fakeHome, ".memarium/config.json"),
       JSON.stringify({
         repoPath,
         repoUrl: "git@example.com:me/repo.git",
@@ -30,7 +30,7 @@ describe("listSessionsCmd", () => {
     );
     // Plant 3 sessions in index
     writeFileSync(
-      join(repoPath, ".vibebook/index.json"),
+      join(repoPath, ".memarium/index.json"),
       JSON.stringify({
         version: 1,
         entries: {
@@ -109,7 +109,7 @@ describe("listSessionsCmd", () => {
   it("merges own + aggregated indices, marks each entry's isOwn flag (P7)", async () => {
     // Plant an aggregated worktree with one extra session that the own
     // index doesn't have, plus a duplicate of abc123 (own should win).
-    const aggDir = join(fakeHome, ".vibebook/aggregated/.vibebook");
+    const aggDir = join(fakeHome, ".memarium/aggregated/.memarium");
     mkdirSync(aggDir, { recursive: true });
     writeFileSync(
       join(aggDir, "index.aggregated.json"),

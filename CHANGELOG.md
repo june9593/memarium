@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.13.0 — 2026-07-02
+
+### Renamed: vibebook → **memarium**
+
+The project is renamed **vibebook → memarium** ("mem" + "-arium" = a place where
+memory lives). This npm package is now published as `memarium`; the old
+`vibebook` package is deprecated and points here.
+
+- **CLI**: `memarium` (with a short `mema` alias) — `memarium sync`, `mema doctor`, etc.
+- **Config dir**: `~/.vibebook/` → `~/.memarium/`. Auto-migrated on first run
+  (`migrateLegacyConfigDir`): the whole dir is moved and absolute `~/.vibebook/`
+  paths stored inside `config.json` (e.g. `repoPath`) are rewritten.
+- **In-repo data dir**: `.vibebook/` → `.memarium/`. Auto-migrated on first
+  sync/digest (`migrateLegacyDataDir` walks the legacy chain — `.vibebook/`,
+  else `.memvc/` — to `.memarium/` via `git mv`, preserving history).
+- **CI**: `vibebook-aggregate.yml` → `memarium-aggregate.yml`; `merge-books.mjs`
+  + env vars (`VIBEBOOK_LOCALE` → `MEMARIUM_LOCALE`, etc.). The dead
+  `vibebook-pages.yml` book-site workflow, the `workflow pages-init` command,
+  and `site-template/` were **removed** — the npm-side `build-site`/`serve`
+  commands moved to the plugin back in 0.5, leaving that path broken.
+- Internals: config paths now resolve lazily from `$HOME` (more robust; also
+  fixes a latent test-isolation issue).
+
+Coordinated with the `memarium-plugin` (ex `vibebook-plugin`) rename. Existing
+users: just upgrade — the config + data dirs migrate themselves. `tsc` clean;
+274 tests.
+
 ## 0.12.0 — 2026-07-01
 
 ### `doctor`: cross-device overlay freshness (P1)

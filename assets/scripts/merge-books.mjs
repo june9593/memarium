@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // Aggregate every device branch's book/ into main.
 //
-// Called from .github/workflows/vibebook-aggregate.yml — checked-in on main,
+// Called from .github/workflows/memarium-aggregate.yml — checked-in on main,
 // runs on every push to a non-main branch. Purely mechanical; never touches
-// an LLM. The LLM work happens in-session via the /vibebook skill on each
-// device, then `vibebook publish` writes per-device chronicle/topic/card
+// an LLM. The LLM work happens in-session via the /memarium skill on each
+// device, then `memarium publish` writes per-device chronicle/topic/card
 // files into that device's branch. This script merges all those device
 // branches into main.
 //
-// vibebook v0.2 schema (book index v2):
+// memarium v0.2 schema (book index v2):
 //
 //   chronicles/  — thread-grain diary entries, INSERT-only on each device.
 //                  Across devices, dedup by threadId (latest updatedAt wins).
@@ -39,12 +39,12 @@ import { existsSync, mkdirSync, writeFileSync, readdirSync, statSync, rmSync, un
 import { dirname, join, relative } from "node:path";
 
 const REPO_ROOT = process.cwd();
-const BOOK_INDEX_PATH = ".vibebook/index.book.json";
-const SPOOL_INDEX_PATH = ".vibebook/index.json";
-const AGGREGATED_INDEX_PATH = ".vibebook/index.aggregated.json";
-const MEMORY_INDEX_PATH = ".vibebook/index.memory.json";
-const ENTITY_INDEX_PATH = ".vibebook/index.entity.json";
-const QA_INDEX_PATH = ".vibebook/index.qa.json";
+const BOOK_INDEX_PATH = ".memarium/index.book.json";
+const SPOOL_INDEX_PATH = ".memarium/index.json";
+const AGGREGATED_INDEX_PATH = ".memarium/index.aggregated.json";
+const MEMORY_INDEX_PATH = ".memarium/index.memory.json";
+const ENTITY_INDEX_PATH = ".memarium/index.entity.json";
+const QA_INDEX_PATH = ".memarium/index.qa.json";
 
 /**
  * Guard against path-traversal attacks in memory entry paths.
@@ -132,7 +132,7 @@ function loadBookIndexFromBranch(ref) {
     const parsed = JSON.parse(content);
     if (parsed.version !== 2) {
       // Pre-v0.2 device — silently skip. The device just needs to upgrade
-      // vibebook + run /vibebook once to get a v2 index.
+      // memarium + run /memarium once to get a v2 index.
       return null;
     }
     if (!parsed.chronicles || !parsed.topics || !parsed.cards) return null;
@@ -142,7 +142,7 @@ function loadBookIndexFromBranch(ref) {
   }
 }
 
-/** Read the device-side spool index (.vibebook/index.json). Keyed by
+/** Read the device-side spool index (.memarium/index.json). Keyed by
  *  `${tool}:${sessionId}`. Used by the raw_sessions aggregation pass
  *  added in 0.8.0 to union every device's raw .md files into main. */
 function loadSpoolIndexFromBranch(ref) {
@@ -157,7 +157,7 @@ function loadSpoolIndexFromBranch(ref) {
   }
 }
 
-/** Read the device-side memory index (.vibebook/index.memory.json).
+/** Read the device-side memory index (.memarium/index.memory.json).
  *  Added in 0.8.6 to union typed memory entries across devices. */
 function loadMemoryIndexFromBranch(ref) {
   const content = readFileFromBranch(ref, MEMORY_INDEX_PATH);
@@ -171,7 +171,7 @@ function loadMemoryIndexFromBranch(ref) {
   }
 }
 
-/** Read the device-side entity index (.vibebook/index.entity.json).
+/** Read the device-side entity index (.memarium/index.entity.json).
  *  Mirrors loadMemoryIndexFromBranch — unions entity wiki pages across devices. */
 function loadEntityIndexFromBranch(ref) {
   const content = readFileFromBranch(ref, ENTITY_INDEX_PATH);
@@ -185,7 +185,7 @@ function loadEntityIndexFromBranch(ref) {
   }
 }
 
-/** Read the device-side qa index (.vibebook/index.qa.json). Mirrors
+/** Read the device-side qa index (.memarium/index.qa.json). Mirrors
  *  loadEntityIndexFromBranch — unions distilled Q&A pages across devices. */
 function loadQaIndexFromBranch(ref) {
   const content = readFileFromBranch(ref, QA_INDEX_PATH);
@@ -219,17 +219,17 @@ function main() {
   for (const { ref, device } of branches) {
     const bookIndex = loadBookIndexFromBranch(ref);
     if (!bookIndex) {
-      console.log(`  ${device}: no v2 .vibebook/index.book.json (book aggregation skipped for this device; raw_sessions still aggregated below)`);
+      console.log(`  ${device}: no v2 .memarium/index.book.json (book aggregation skipped for this device; raw_sessions still aggregated below)`);
       continue;
     }
     perDevice.push({ ref, device, bookIndex });
   }
   // 0.8.3: don't early-return when no device has a BookIndex — the
-  // raw_sessions aggregation pass below works off `.vibebook/index.json`
+  // raw_sessions aggregation pass below works off `.memarium/index.json`
   // (the spool index, separate from index.book.json) and is useful
-  // even before any device has run /vibebook digest. Pre-0.8.3 this
+  // even before any device has run /memarium digest. Pre-0.8.3 this
   // gated raw_sessions on books existing, so cross-device resume was
-  // silently disabled until someone ran /vibebook.
+  // silently disabled until someone ran /memarium.
 
   // -------- chronicles: dedup by threadId, latest updatedAt wins --------
   const chronicleByThread = new Map(); // threadId -> { ref, device, entry }
@@ -294,7 +294,7 @@ function main() {
   // -------- raw_sessions: union by tool:sessionId, latest sourceMtimeMs wins --------
   // P7 (0.8.0): cross-device raw_sessions aggregation. Devices push only their
   // own raw_sessions/ to their device branch; main holds the union so any
-  // device can `vibebook resume <id>` against any other device's session.
+  // device can `memarium resume <id>` against any other device's session.
   // Pure plaintext blob copy — `git show` yields the session md as-is.
   const rawByKey = new Map(); // "tool:sessionId" -> { ref, device, entry }
   // 0.8.3: iterate `branches` (ALL device branches) instead of `perDevice`
@@ -303,7 +303,7 @@ function main() {
   for (const { ref, device } of branches) {
     const spoolIdx = loadSpoolIndexFromBranch(ref);
     if (!spoolIdx) {
-      console.log(`  ${device}: no v1 .vibebook/index.json — no raw_sessions to aggregate`);
+      console.log(`  ${device}: no v1 .memarium/index.json — no raw_sessions to aggregate`);
       continue;
     }
     for (const e of Object.values(spoolIdx.entries)) {
@@ -330,7 +330,7 @@ function main() {
   console.log(`raw_sessions: kept ${keptRawPaths.length} unique sessions from ${branches.length} device branch(es)`);
 
   // Write the union index ONLY when at least one device had spool data.
-  // Skipping the file on book-only repos (no `vibebook sync` ever run yet)
+  // Skipping the file on book-only repos (no `memarium sync` ever run yet)
   // keeps the test's "no aggregated artifacts when no spool" guarantee.
   if (keptRawPaths.length > 0) {
     writeRel(
@@ -413,7 +413,7 @@ function main() {
 
   // -------- entities: union by id, latest updatedAt wins --------
   // Mirrors the memory pass 1:1 but scoped to memory/entities/ and
-  // reading from .vibebook/index.entity.json on each device branch.
+  // reading from .memarium/index.entity.json on each device branch.
   const entityByKey = new Map(); // id -> { ref, device, entry }
   let anyEntityIndexSeen = false;
   for (const { ref, device } of branches) {
@@ -477,7 +477,7 @@ function main() {
 
   // -------- qa: union by id, latest updatedAt wins --------
   // Mirrors the entity pass 1:1 but scoped to memory/qa/ and reading from
-  // .vibebook/index.qa.json on each device branch.
+  // .memarium/index.qa.json on each device branch.
   const qaByKey = new Map(); // id -> { ref, device, entry }
   let anyQaIndexSeen = false;
   for (const { ref, device } of branches) {
@@ -555,7 +555,7 @@ function main() {
 
   // -------- commit --------
   // Build add list dynamically: book/, raw_sessions/, and
-  // .vibebook/index.aggregated.json each only exist when at least one
+  // .memarium/index.aggregated.json each only exist when at least one
   // device contributed to the corresponding aggregation. `git add` on a
   // non-existent path is a hard error, so we gate per-path.
   const addPaths = [];
@@ -576,7 +576,7 @@ function main() {
     console.log("no changes to commit");
     return;
   }
-  const msg = `vibebook aggregate: ${chronicleByThread.size} chronicles, ${keptTopicPaths.length} topic-versions, ${cardByKey.size} cards, ${keptRawPaths.length} raw_sessions, +${keptMemoryPaths.length} memory, +${keptEntityPaths.length} entities, +${keptQaPaths.length} qa across ${branches.length} device(s)`;
+  const msg = `memarium aggregate: ${chronicleByThread.size} chronicles, ${keptTopicPaths.length} topic-versions, ${cardByKey.size} cards, ${keptRawPaths.length} raw_sessions, +${keptMemoryPaths.length} memory, +${keptEntityPaths.length} entities, +${keptQaPaths.length} qa across ${branches.length} device(s)`;
   sh("git", ["commit", "-m", JSON.stringify(msg)]);
   console.log(`committed: ${msg}`);
 }
@@ -685,7 +685,7 @@ function pruneTopicsDir(projDir, liveSet, _liveDevices, projectName) {
  * Render book/index.md + book/_meta/timeline.md + book/<project>/index.md.
  *
  * Logically duplicates src/digest/book-catalog.ts but lives here so the CI
- * yaml only needs node 20 + this file (no npm install of vibebook on every
+ * yaml only needs node 20 + this file (no npm install of memarium on every
  * workflow run).
  */
 function regenCatalog({ chronicles, topics, cards, devices }) {
@@ -804,11 +804,11 @@ function renderTimeline({ chronicles, topics, cards }) {
 
 /**
  * Pick a locale-specific string table for the rendered book pages.
- * Driven by VIBEBOOK_LOCALE env var (set by the workflow from config.bookLocale).
+ * Driven by MEMARIUM_LOCALE env var (set by the workflow from config.bookLocale).
  * Defaults to "en". Falls back to "en" on any unknown locale.
  */
 function strings() {
-  const locale = (process.env.VIBEBOOK_LOCALE || "en").toLowerCase();
+  const locale = (process.env.MEMARIUM_LOCALE || "en").toLowerCase();
   if (locale === "zh") return STRINGS_ZH;
   return STRINGS_EN;
 }

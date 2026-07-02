@@ -3,7 +3,7 @@ export type Tool = "claude" | "copilot";
 /** A single rich content block from the source jsonl. Mirrors the
  *  Anthropic API content block shape so renderers can produce markdown
  *  that captures the full conversation, including tool calls and results
- *  (which previous vibebook versions stripped).
+ *  (which earlier versions stripped).
  *
  *  Sources that don't expose tool data (e.g. Copilot Chat) emit only
  *  `text` and `thinking` blocks. Sources that do (Claude Code) emit
@@ -58,7 +58,7 @@ export interface IndexEntry {
   project: string;
   /** Original cwd / workspace path the session ran in. Used to reverse-lookup
    *  "what project does the user's current shell belong to" for the project-mode
-   *  /vibebook skill — the skill takes process.cwd() and finds the project slug
+   *  /memarium skill — the skill takes process.cwd() and finds the project slug
    *  whose entries' projectRaw matches. */
   projectRaw: string;
   startedAt: string;

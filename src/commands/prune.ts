@@ -19,8 +19,8 @@ export interface PruneResult {
 }
 
 /**
- * `vibebook prune` — find raw_sessions/*.md files on disk that are NOT
- * referenced by `.vibebook/index.json` and (optionally) delete them.
+ * `memarium prune` — find raw_sessions/*.md files on disk that are NOT
+ * referenced by `.memarium/index.json` and (optionally) delete them.
  *
  * Why this exists: pre-0.7.1 the Copilot adapter could write the same
  * sessionId to two different .md paths (chatSessions/ + transcripts/ both

@@ -40,7 +40,7 @@ function cloneWithProgress(repoUrl: string, dest: string): Promise<void> {
 export interface MaterializeResult {
   /** "cloned" = brand-new clone; "existing" = used existing checkout;
    *  "init" = empty dir made into a git repo with origin set;
-   *  "adopted" = non-empty non-git dir (typically written by vibebook-plugin
+   *  "adopted" = non-empty non-git dir (typically written by memarium-plugin
    *  before the npm CLI was installed) was turned into a git repo, origin
    *  added, fetched, and the user's local files preserved as the new branch's
    *  initial commit. */
@@ -90,11 +90,11 @@ export async function materializeRepoAtPath(
 }
 
 /**
- * Adopt a non-git directory full of vibebook-plugin output into a fresh git
- * repo bound to `repoUrl`. Use case: user installed vibebook-plugin first,
- * which wrote `book/` and `raw_sessions/` under `~/.vibebook/session-repo/`
+ * Adopt a non-git directory full of memarium-plugin output into a fresh git
+ * repo bound to `repoUrl`. Use case: user installed memarium-plugin first,
+ * which wrote `book/` and `raw_sessions/` under `~/.memarium/session-repo/`
  * but never `git init`'d. Then the user installs the npm CLI and runs
- * `vibebook init` — the dir is non-empty but not git, so the strict
+ * `memarium init` — the dir is non-empty but not git, so the strict
  * materialize path refuses.
  *
  * Safety:
@@ -102,7 +102,7 @@ export async function materializeRepoAtPath(
  * - The fetch is "info-only" — we don't checkout any remote ref, so user
  *   files can't be overwritten by `main`.
  * - The user lands on a brand-new branch `<deviceBranch>` with their
- *   existing files as the first commit. Next `vibebook sync` will append
+ *   existing files as the first commit. Next `memarium sync` will append
  *   normally; first push creates the branch upstream.
  *
  * The caller (init wizard) is responsible for prompting the user before
@@ -239,7 +239,7 @@ export async function commitAndPush(
 /**
  * Run `writeFiles()` on a temporary side-checkout of `main` (or create main
  * as an orphan if it doesn't exist remotely), commit + push, then restore
- * the caller's current branch. Used by `vibebook workflow init` so CI
+ * the caller's current branch. Used by `memarium workflow init` so CI
  * workflow files land on main (where GitHub Actions actually reads them)
  * without disturbing the user's device branch or working tree.
  *
@@ -270,13 +270,13 @@ export async function commitToMainViaWorktree(
   const remoteMainExists = (await git.branch(["-r"]))
     .all.some((b) => b === "origin/main");
 
-  const worktreePath = mkdtempSync(join(tmpdir(), "vibebook-main-"));
+  const worktreePath = mkdtempSync(join(tmpdir(), "memarium-main-"));
   // Use a unique temp branch name (not "main") to avoid the worktree conflict
   // git raises if the user's primary working tree is currently on `main`:
   //   fatal: 'main' is already used by worktree at <repoPath>
   // We push to origin/main via `HEAD:main` refspec instead of relying on a
   // locally-named branch.
-  const tempBranch = `vibebook-tmp-main-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const tempBranch = `memarium-tmp-main-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   // simple-git doesn't expose worktree directly; use raw.
   try {
     if (remoteMainExists) {
@@ -333,7 +333,7 @@ export async function commitToMainViaWorktree(
 /**
  * Bring the local device branch in sync with origin before we try to push,
  * so the GitHub Action's auto-commits don't cause non-fast-forward push
- * failures on the next `vibebook sync` / `digest` run.
+ * failures on the next `memarium sync` / `digest` run.
  *
  * Sequence:
  *   1. fetch origin

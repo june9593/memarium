@@ -31,8 +31,6 @@ Thumbs.db
 *.tgz
 
 # Site-template caches
-site-template/.astro
-site-template/package-lock.json
 
 # Marketing-site caches (Astro project just for the GitHub Pages landing)
 marketing-site/.astro

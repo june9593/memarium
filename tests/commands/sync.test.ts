@@ -65,7 +65,7 @@ describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
   let vscodeRoot: string;
   beforeEach(() => {
     repo = mkdtempSync(join(tmpdir(), "memvc-repo-"));
-    claudeRoot = mkdtempSync(join(tmpdir(), "vibebook-test-claude-fixture-"));
+    claudeRoot = mkdtempSync(join(tmpdir(), "memarium-test-claude-fixture-"));
     const proj = join(claudeRoot, "-Users-me-edge-memvc");
     mkdirSync(proj, { recursive: true });
     cpSync(join(fixturesDir, "claude", "claude-session.jsonl"), join(proj, "abc12345.jsonl"));
@@ -94,10 +94,10 @@ describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
     expect(result2.skippedCount).toBe(1);
   });
 
-  it("never creates book/ — that's /vibebook's job, not sync's", async () => {
+  it("never creates book/ — that's /memarium's job, not sync's", async () => {
     await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
     expect(existsSync(join(repo, "book"))).toBe(false);
-    expect(existsSync(join(repo, ".vibebook/index.book.json"))).toBe(false);
+    expect(existsSync(join(repo, ".memarium/index.book.json"))).toBe(false);
   });
 
   it("skips empty-shell sessions (0 messages) without writing files or indexing", async () => {
@@ -146,7 +146,7 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     bareRemote = mkdtempSync(join(tmpdir(), "vb-wfsync-bare-"));
     await simpleGit().cwd(bareRemote).raw(["init", "--bare", "-b", "main"]);
 
-    // Plant `.github/workflows/vibebook-aggregate.yml` on the bare's main.
+    // Plant `.github/workflows/memarium-aggregate.yml` on the bare's main.
     const seed = mkdtempSync(join(tmpdir(), "vb-wfsync-seed-"));
     const sg = simpleGit(seed);
     await sg.raw(["init", "-b", "main"]);
@@ -154,8 +154,8 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     await sg.addConfig("user.name", "t");
     mkdirSync(join(seed, ".github", "workflows"), { recursive: true });
     writeFileSync(
-      join(seed, ".github/workflows/vibebook-aggregate.yml"),
-      "name: vibebook aggregate book\non: { push: { branches-ignore: [main] } }\njobs: { aggregate: { runs-on: ubuntu-latest, steps: [{ run: 'echo hi' }] } }\n",
+      join(seed, ".github/workflows/memarium-aggregate.yml"),
+      "name: memarium aggregate book\non: { push: { branches-ignore: [main] } }\njobs: { aggregate: { runs-on: ubuntu-latest, steps: [{ run: 'echo hi' }] } }\n",
     );
     await sg.add(".");
     await sg.commit("seed main with aggregate workflow");
@@ -186,7 +186,7 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("first push of a fresh device branch picks up .github/workflows/vibebook-aggregate.yml from main, commits and pushes it", async () => {
+  it("first push of a fresh device branch picks up .github/workflows/memarium-aggregate.yml from main, commits and pushes it", async () => {
     await runSync({
       repoPath: workRepo, claudeRoot, vscodeRoot,
       push: true,
@@ -196,11 +196,11 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
 
     const { simpleGit } = await import("simple-git");
     // The file should now exist on the LOCAL device branch's working tree.
-    expect(existsSync(join(workRepo, ".github/workflows/vibebook-aggregate.yml"))).toBe(true);
+    expect(existsSync(join(workRepo, ".github/workflows/memarium-aggregate.yml"))).toBe(true);
 
     // …and the bare remote's mini-fresh branch should also have it (= CI will now trigger on future pushes).
     const tip = await simpleGit(bareRemote).raw(["ls-tree", "-r", "mini-fresh"]);
-    expect(tip).toContain(".github/workflows/vibebook-aggregate.yml");
+    expect(tip).toContain(".github/workflows/memarium-aggregate.yml");
   }, 30_000);
 
   it("no-op when device branch already has an identical workflow file", async () => {
@@ -208,9 +208,9 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     const { simpleGit } = await import("simple-git");
     // Plant the same workflow content locally first
     mkdirSync(join(workRepo, ".github/workflows"), { recursive: true });
-    const wfContent = "name: vibebook aggregate book\non: { push: { branches-ignore: [main] } }\njobs: { aggregate: { runs-on: ubuntu-latest, steps: [{ run: 'echo hi' }] } }\n";
-    writeFileSync(join(workRepo, ".github/workflows/vibebook-aggregate.yml"), wfContent);
-    await simpleGit(workRepo).add(".github/workflows/vibebook-aggregate.yml");
+    const wfContent = "name: memarium aggregate book\non: { push: { branches-ignore: [main] } }\njobs: { aggregate: { runs-on: ubuntu-latest, steps: [{ run: 'echo hi' }] } }\n";
+    writeFileSync(join(workRepo, ".github/workflows/memarium-aggregate.yml"), wfContent);
+    await simpleGit(workRepo).add(".github/workflows/memarium-aggregate.yml");
     await simpleGit(workRepo).commit("pre-seed workflow on device branch");
 
     await runSync({
@@ -221,7 +221,7 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     });
 
     // File still present (untouched)
-    expect(readFileSync(join(workRepo, ".github/workflows/vibebook-aggregate.yml"), "utf8")).toBe(wfContent);
+    expect(readFileSync(join(workRepo, ".github/workflows/memarium-aggregate.yml"), "utf8")).toBe(wfContent);
   }, 30_000);
 
   it("silently skips when main has no workflow file (fresh-remote, pre-`workflow init` case)", async () => {
@@ -256,7 +256,7 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     });
 
     // Workflow file should NOT have been created — main has none to copy.
-    expect(existsSync(join(freshClone, ".github/workflows/vibebook-aggregate.yml"))).toBe(false);
+    expect(existsSync(join(freshClone, ".github/workflows/memarium-aggregate.yml"))).toBe(false);
   }, 30_000);
 });
 
@@ -308,7 +308,7 @@ describe("runSync — memory/ staging (0.8.6)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("stages and commits memory/ + .vibebook/index.memory.json when memory-write has produced them", async () => {
+  it("stages and commits memory/ + .memarium/index.memory.json when memory-write has produced them", async () => {
     const { writeFileSync } = await import("node:fs");
     const { simpleGit } = await import("simple-git");
 
@@ -318,9 +318,9 @@ describe("runSync — memory/ staging (0.8.6)", () => {
       join(workRepo, "memory", "semantic", "edge-src", "fact.md"),
       "---\ntype: semantic\nscope: edge-src\nslug: fact\n---\n# fact\nsome remembered fact\n",
     );
-    mkdirSync(join(workRepo, ".vibebook"), { recursive: true });
+    mkdirSync(join(workRepo, ".memarium"), { recursive: true });
     writeFileSync(
-      join(workRepo, ".vibebook", "index.memory.json"),
+      join(workRepo, ".memarium", "index.memory.json"),
       JSON.stringify({ version: 1, entries: [{ type: "semantic", scope: "edge-src", slug: "fact", path: "memory/semantic/edge-src/fact.md" }] }),
     );
 
@@ -334,7 +334,7 @@ describe("runSync — memory/ staging (0.8.6)", () => {
     // Both files should now be tracked on the bare remote's device branch.
     const tip = await simpleGit(bareRemote).raw(["ls-tree", "-r", "memsync-device"]);
     expect(tip).toContain("memory/semantic/edge-src/fact.md");
-    expect(tip).toContain(".vibebook/index.memory.json");
+    expect(tip).toContain(".memarium/index.memory.json");
   }, 30_000);
 
   it("no-ops cleanly when no memory/ directory exists (no empty commit)", async () => {
@@ -355,20 +355,20 @@ describe("runSync — memory/ staging (0.8.6)", () => {
     expect(tip).not.toContain("memory/");
   }, 30_000);
 
-  it("stages and commits .vibebook/index.entity.json when entity-write has produced it", async () => {
+  it("stages and commits .memarium/index.entity.json when entity-write has produced it", async () => {
     const { writeFileSync } = await import("node:fs");
     const { simpleGit } = await import("simple-git");
 
     // Simulate what entity-write produces: entity .md files under memory/entities/
-    // plus the entity index at .vibebook/index.entity.json.
+    // plus the entity index at .memarium/index.entity.json.
     mkdirSync(join(workRepo, "memory", "entities", "_global"), { recursive: true });
     writeFileSync(
       join(workRepo, "memory", "entities", "_global", "Tab.md"),
       "---\nid: _global/Tab\ntitle: Tab\n---\n# Tab\nA browser tab.\n",
     );
-    mkdirSync(join(workRepo, ".vibebook"), { recursive: true });
+    mkdirSync(join(workRepo, ".memarium"), { recursive: true });
     writeFileSync(
-      join(workRepo, ".vibebook", "index.entity.json"),
+      join(workRepo, ".memarium", "index.entity.json"),
       JSON.stringify({ version: 1, entries: { "_global/Tab": { id: "_global/Tab", title: "Tab", path: "memory/entities/_global/Tab.md", updatedAt: "2026-06-01T00:00:00.000Z" } } }),
     );
 
@@ -382,10 +382,10 @@ describe("runSync — memory/ staging (0.8.6)", () => {
     // Both the entity .md and the entity index should be on the device branch.
     const tip = await simpleGit(bareRemote).raw(["ls-tree", "-r", "memsync-device"]);
     expect(tip).toContain("memory/entities/_global/Tab.md");
-    expect(tip).toContain(".vibebook/index.entity.json");
+    expect(tip).toContain(".memarium/index.entity.json");
   }, 30_000);
 
-  it("stages and commits .vibebook/index.qa.json when qa-write has produced it", async () => {
+  it("stages and commits .memarium/index.qa.json when qa-write has produced it", async () => {
     const { writeFileSync } = await import("node:fs");
     const { simpleGit } = await import("simple-git");
 
@@ -394,9 +394,9 @@ describe("runSync — memory/ staging (0.8.6)", () => {
       join(workRepo, "memory", "qa", "_global", "how-to-build-aaaa1111.md"),
       "---\nid: qa/_global/how-to-build-aaaa1111\nquestion: How do I build?\nanswerSummary: npm build\n---\n# How do I build?\nRun npm run build.\n",
     );
-    mkdirSync(join(workRepo, ".vibebook"), { recursive: true });
+    mkdirSync(join(workRepo, ".memarium"), { recursive: true });
     writeFileSync(
-      join(workRepo, ".vibebook", "index.qa.json"),
+      join(workRepo, ".memarium", "index.qa.json"),
       JSON.stringify({ version: 1, entries: { "qa/_global/how-to-build-aaaa1111": { id: "qa/_global/how-to-build-aaaa1111", question: "How do I build?", answerSummary: "npm build", path: "memory/qa/_global/how-to-build-aaaa1111.md", updatedAt: "2026-06-11T00:00:00.000Z" } } }),
     );
 
@@ -409,7 +409,7 @@ describe("runSync — memory/ staging (0.8.6)", () => {
 
     const tip = await simpleGit(bareRemote).raw(["ls-tree", "-r", "memsync-device"]);
     expect(tip).toContain("memory/qa/_global/how-to-build-aaaa1111.md");
-    expect(tip).toContain(".vibebook/index.qa.json");
+    expect(tip).toContain(".memarium/index.qa.json");
   }, 30_000);
 });
 

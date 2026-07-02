@@ -11,16 +11,16 @@ import { readConfig, writeConfig, type Config } from "../config.js";
 import { deviceBranchFromHostname } from "../device.js";
 import { ensureRepo, commitAndPush, ensureDeviceBranch, fastForwardBranch } from "../git-ops.js";
 import { migrateLegacyMainToDevice, migrateLegacyDataDir, migratedDataDirPaths } from "../migrate.js";
-import { INDEX_REL, LEGACY_REPO_DATA_DIR } from "../repo-data-dir.js";
+import { INDEX_REL } from "../repo-data-dir.js";
 
 /**
- * `vibebook sync` — extract jsonl from local sources (Claude Code + VS Code
+ * `memarium sync` — extract jsonl from local sources (Claude Code + VS Code
  * Copilot Chat), write per-session raw + md to the user's git repo as
  * **plaintext**, then commit + push to the device branch.
  *
- * vibebook v0.2 explicitly does NOT call any LLM here. The book-writing
- * pipeline is the in-session `/vibebook` slash command driven by skills/
- * vibebook/SKILL.md, calling `vibebook prepare` + `vibebook publish`.
+ * memarium v0.2 explicitly does NOT call any LLM here. The book-writing
+ * pipeline is the in-session `/memarium` slash command driven by skills/
+ * memarium/SKILL.md, calling `memarium prepare` + `memarium publish`.
  */
 export interface SyncOptions {
   repoPath: string;
@@ -43,11 +43,12 @@ export interface SyncResult {
 }
 
 export async function runSync(opts: SyncOptions): Promise<SyncResult> {
-  // One-shot migration: rename legacy `.memvc/` → `.vibebook/` if present.
-  // Done before loadIndex so the read picks up the file at its new location.
+  // One-shot migration: rename the newest legacy data dir (`.vibebook/`, else
+  // `.memvc/`) → `.memarium/` if present. Done before loadIndex so the read
+  // picks up the file at its new location.
   const dataDirMig = await migrateLegacyDataDir(opts.repoPath);
   if (dataDirMig.migrated) {
-    console.log(chalk.cyan(`Migrating: renamed legacy ${LEGACY_REPO_DATA_DIR}/ → .vibebook/ ${dataDirMig.viaGit ? "(via git mv; staged for next commit)" : "(non-git mode)"}`));
+    console.log(chalk.cyan(`Migrating: renamed legacy ${dataDirMig.from}/ → .memarium/ ${dataDirMig.viaGit ? "(via git mv; staged for next commit)" : "(non-git mode)"}`));
   }
 
   const adapters: SourceAdapter[] = [
@@ -145,7 +146,7 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(chalk.red(`! could not sync local branch with origin: ${msg}`));
-      console.log(chalk.cyan(`  Skipping push. Resolve in ${opts.repoPath} and re-run \`vibebook sync\`.`));
+      console.log(chalk.cyan(`  Skipping push. Resolve in ${opts.repoPath} and re-run \`memarium sync\`.`));
       return { newCount, skippedCount, pathsWritten, committed: false, pushed: false };
     }
     const all = [...pathsWritten, INDEX_REL];
@@ -153,40 +154,40 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
       for (const p of migratedDataDirPaths(opts.repoPath)) all.push(p);
     }
     // P1 (0.8.1): make sure this device branch carries a copy of
-    // `.github/workflows/vibebook-aggregate.yml`. GitHub Actions on `push`
+    // `.github/workflows/memarium-aggregate.yml`. GitHub Actions on `push`
     // events reads the workflow definition from THE PUSHED BRANCH (not
     // from the default branch), so without this the CI never triggers on
     // freshly-init'd devices and main never gets aggregated. The file
-    // itself is identical to what `vibebook workflow init` planted on
+    // itself is identical to what `memarium workflow init` planted on
     // main; we just clone-in the latest copy on every sync so device
     // branches stay in sync with workflow updates too.
     const workflowAdded = await ensureWorkflowFileFromMain(opts.repoPath, git);
-    if (workflowAdded) all.push(".github/workflows/vibebook-aggregate.yml");
+    if (workflowAdded) all.push(".github/workflows/memarium-aggregate.yml");
     // memory/ (typed-memory layer, 0.8.6): the plugin's `memory-write` writes
-    // memory/<type>/... + .vibebook/index.memory.json into the working tree but
+    // memory/<type>/... + .memarium/index.memory.json into the working tree but
     // doesn't push. Stage them here so they reach the device branch and CI's
     // merge-books can aggregate memory cross-device. commitAndPush() no-ops if
     // nothing actually changed.
     if (existsSync(join(opts.repoPath, "memory"))) all.push("memory");
-    if (existsSync(join(opts.repoPath, ".vibebook", "index.memory.json"))) {
-      all.push(".vibebook/index.memory.json");
+    if (existsSync(join(opts.repoPath, ".memarium", "index.memory.json"))) {
+      all.push(".memarium/index.memory.json");
     }
     // entity index: memory/entities/ is already covered by staging
     // "memory/" above; we just need to also push the entity index so that
     // merge-books' anyEntityIndexSeen check fires on CI.
-    if (existsSync(join(opts.repoPath, ".vibebook", "index.entity.json"))) {
-      all.push(".vibebook/index.entity.json");
+    if (existsSync(join(opts.repoPath, ".memarium", "index.entity.json"))) {
+      all.push(".memarium/index.entity.json");
     }
     // qa index: memory/qa/ is already covered by staging "memory" above; we just
     // need to also push the qa index so cross-device merge-books can union it.
-    if (existsSync(join(opts.repoPath, ".vibebook", "index.qa.json"))) {
-      all.push(".vibebook/index.qa.json");
+    if (existsSync(join(opts.repoPath, ".memarium", "index.qa.json"))) {
+      all.push(".memarium/index.qa.json");
     }
     console.log(chalk.gray(`Staging ${all.length} paths and committing...`));
     const commitMsg = newCount > 0
-      ? `vibebook sync: +${newCount} sessions${dataDirMig.migrated ? " (+ rename .memvc/→.vibebook/)" : ""}`
-      : (dataDirMig.migrated ? "vibebook: rename .memvc/ → .vibebook/" :
-         `vibebook sync: +${newCount} sessions`);
+      ? `memarium sync: +${newCount} sessions${dataDirMig.migrated ? ` (+ rename ${dataDirMig.from}/→.memarium/)` : ""}`
+      : (dataDirMig.migrated ? `memarium: rename ${dataDirMig.from}/ → .memarium/` :
+         `memarium sync: +${newCount} sessions`);
     const r = await commitAndPush(
       git,
       commitMsg,
@@ -219,12 +220,12 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
     const { refreshAggregatedWorktree } = await import("../aggregated-store.js");
     const ok = await refreshAggregatedWorktree(opts.repoPath);
     if (ok) {
-      console.log(chalk.gray("  refreshed aggregated worktree (~/.vibebook/aggregated/)"));
+      console.log(chalk.gray("  refreshed aggregated worktree (~/.memarium/aggregated/)"));
     } else {
       // Likely "main has nothing yet" on a fresh repo — CI hasn't run an
       // aggregate yet. Stays quiet unless DEBUG; this is the expected path
       // on first sync of a brand-new remote.
-      if (process.env.VIBEBOOK_DEBUG) {
+      if (process.env.MEMARIUM_DEBUG) {
         console.log(chalk.gray("  (aggregated worktree refresh skipped — no main yet?)"));
       }
     }
@@ -234,17 +235,17 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
 }
 
 /**
- * Ensure `.github/workflows/vibebook-aggregate.yml` exists in the device
+ * Ensure `.github/workflows/memarium-aggregate.yml` exists in the device
  * branch's working tree. GitHub Actions on `push` events reads the
  * workflow file from the pushed branch — not from the default branch —
  * so a device branch without this file silently never triggers CI. The
  * "fresh init never aggregated" symptom on macmini 2026-05-25 was this
- * exact path: `vibebook workflow init` (0.5.3+) only writes the file to
+ * exact path: `memarium workflow init` (0.5.3+) only writes the file to
  * main, but the new device branch had no `.github/` directory at all.
  *
  * Strategy: best-effort fetch + restore-from-main on every sync. If main
  * doesn't have the file yet (first push on a brand-new remote), silently
- * skip — the user just needs to run `vibebook workflow init` once.
+ * skip — the user just needs to run `memarium workflow init` once.
  *
  * Returns true when the working tree file was created OR refreshed (the
  * caller should stage it). Returns false when nothing to do or main has
@@ -254,14 +255,14 @@ async function ensureWorkflowFileFromMain(
   repoPath: string,
   git: import("simple-git").SimpleGit,
 ): Promise<boolean> {
-  const wfRel = ".github/workflows/vibebook-aggregate.yml";
+  const wfRel = ".github/workflows/memarium-aggregate.yml";
   const wfAbs = join(repoPath, wfRel);
   let mainContent: string;
   try {
     await git.fetch("origin", "main");
     mainContent = await git.show([`origin/main:${wfRel}`]);
   } catch (err) {
-    if (process.env.VIBEBOOK_DEBUG) {
+    if (process.env.MEMARIUM_DEBUG) {
       console.log(chalk.gray(`  (workflow file: skip — ${(err as Error).message?.split("\n")[0]})`));
     }
     return false;
@@ -291,7 +292,7 @@ export function ensureDeviceBranchOnConfig(cfg: Config): { migrated: boolean; cf
 }
 
 /**
- * Loads ~/.vibebook/config.json and applies any in-place migrations needed by
+ * Loads ~/.memarium/config.json and applies any in-place migrations needed by
  * current code (currently: deviceBranch self-heal). On migration, writes the
  * fixed config back to disk.
  */
@@ -300,7 +301,7 @@ export function readConfigWithMigration(): Config {
   const heal = ensureDeviceBranchOnConfig(rawCfg);
   if (heal.migrated) {
     console.log(chalk.cyan(
-      `Migrating: legacy config missing deviceBranch. Setting to "${heal.cfg.deviceBranch}" and saving to ~/.vibebook/config.json.`,
+      `Migrating: legacy config missing deviceBranch. Setting to "${heal.cfg.deviceBranch}" and saving to ~/.memarium/config.json.`,
     ));
     writeConfig(heal.cfg);
   }
@@ -319,6 +320,6 @@ export async function syncCmd(): Promise<void> {
   console.log(chalk.bold(`\nSynced: +${r.newCount} new, ${r.skippedCount} unchanged`));
   if (r.committed) console.log(chalk.cyan(r.pushed ? "Pushed." : "Committed (push failed)."));
   if (r.newCount > 0) {
-    console.log(chalk.cyan("\nNext: in Claude Code, run `/vibebook` to digest into chronicle/topics/cards."));
+    console.log(chalk.cyan("\nNext: in Claude Code, run `/memarium` to digest into chronicle/topics/cards."));
   }
 }

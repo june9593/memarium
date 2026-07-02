@@ -111,7 +111,7 @@ describe("writeSession (0.6 — single .md, frontmatter, content blocks)", () =>
     expect(body.length).toBeLessThan(bigContent.length / 2);
   });
 
-  it("VIBEBOOK_FULL_TOOL_RESULTS=1 disables truncation", () => {
+  it("MEMARIUM_FULL_TOOL_RESULTS=1 disables truncation", () => {
     const big = "line " + "x".repeat(50) + "\n";
     const bigContent = big.repeat(500);
     const s2: NormalizedSession = {
@@ -122,14 +122,14 @@ describe("writeSession (0.6 — single .md, frontmatter, content blocks)", () =>
         contentBlocks: [{ type: "tool_result", content: bigContent }],
       }],
     };
-    process.env.VIBEBOOK_FULL_TOOL_RESULTS = "1";
+    process.env.MEMARIUM_FULL_TOOL_RESULTS = "1";
     try {
       const { md } = writeSession(repo, s2);
       const body = readFileSync(join(repo, md), "utf8");
       expect(body).toContain(bigContent);
       expect(body).not.toContain("[... truncated:");
     } finally {
-      delete process.env.VIBEBOOK_FULL_TOOL_RESULTS;
+      delete process.env.MEMARIUM_FULL_TOOL_RESULTS;
     }
   });
 

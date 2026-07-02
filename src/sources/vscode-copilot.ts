@@ -317,7 +317,7 @@ function parseCopilotTranscript(sourcePath: string, content: string, workspacePa
       const rawReasoning = typeof obj?.data?.reasoningText === "string" ? obj.data.reasoningText : "";
       const text = sanitizeMessageText(rawText);
       const reasoning = sanitizeMessageText(rawReasoning);
-      // tool requests are intentionally NOT included — vibebook summarizes
+      // tool requests are intentionally NOT included — memarium summarizes
       // intent + outcome, not tool traces. Drop the message only when both
       // text AND reasoning are empty.
       if (text || reasoning) {

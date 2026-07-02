@@ -1,15 +1,15 @@
 {
-  "name": "vibebook",
-  "version": "0.12.0",
-  "description": "Cross-device sync + resume for AI coding sessions (Claude Code + Copilot Chat). Companion to the vibebook Claude Code plugin which provides digest + recall.",
+  "name": "memarium",
+  "version": "0.13.0",
+  "description": "Cross-device sync + resume for AI coding sessions (Claude Code + Copilot Chat). Companion to the memarium Claude Code plugin which provides digest + recall.",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/june9593/vibebook.git"
+    "url": "git+https://github.com/june9593/memarium.git"
   },
-  "homepage": "https://github.com/june9593/vibebook",
-  "bugs": "https://github.com/june9593/vibebook/issues",
+  "homepage": "https://github.com/june9593/memarium",
+  "bugs": "https://github.com/june9593/memarium/issues",
   "keywords": [
     "memory",
     "ai",
@@ -18,10 +18,11 @@
     "sessions",
     "digest",
     "vibe-coding",
-    "vibebook"
+    "memarium"
   ],
   "bin": {
-    "vibebook": "./dist/bin/vibebook.js"
+    "memarium": "./dist/bin/memarium.js",
+    "mema": "./dist/bin/memarium.js"
   },
   "files": [
     "dist/",
@@ -30,7 +31,6 @@
     "commands/",
     "hooks/",
     ".claude-plugin/",
-    "site-template/",
     "README.md"
   ],
   "scripts": {
@@ -38,8 +38,8 @@
     "build": "npm run clean && tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev": "tsx bin/vibebook.ts",
-    "prepack": "npm run build && chmod +x dist/bin/vibebook.js",
+    "dev": "tsx bin/memarium.ts",
+    "prepack": "npm run build && chmod +x dist/bin/memarium.js",
     "prepublishOnly": "npm test"
   },
   "dependencies": {

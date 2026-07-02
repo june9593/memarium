@@ -57,7 +57,7 @@ describe("chooseInvocation", () => {
     const big = "x".repeat(Math.floor(ARG_MAX_BYTES * 0.95));
     const argv = chooseInvocation(big, "abc12345");
     expect(argv[0]).toBe("claude");
-    expect(argv[1]).toMatch(/^Read .+\/\.vibebook-resume-abc12345\.md and act on the instructions there\.$/);
+    expect(argv[1]).toMatch(/^Read .+\/\.memarium-resume-abc12345\.md and act on the instructions there\.$/);
     // verify the file was written and contains the prompt
     const m = argv[1]!.match(/Read (\S+) and/);
     expect(m).not.toBeNull();

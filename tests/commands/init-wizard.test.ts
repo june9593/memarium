@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { Readable, Writable } from "node:stream";
 
 describe("defaultLocalPath", () => {
-  it("returns ~/.vibebook/session-repo", async () => {
+  it("returns ~/.memarium/session-repo", async () => {
     const m = await import("../../src/commands/init-wizard.js");
-    expect(m.defaultLocalPath().endsWith("/.vibebook/session-repo")).toBe(true);
+    expect(m.defaultLocalPath().endsWith("/.memarium/session-repo")).toBe(true);
   });
 });
 
@@ -38,7 +38,7 @@ describe("applyWizardAnswers", () => {
   let originUrl: string;
 
   beforeEach(async () => {
-    tmpHome = mkdtempSync(join(tmpdir(), "vibebook-wiz-"));
+    tmpHome = mkdtempSync(join(tmpdir(), "memarium-wiz-"));
     vi.stubEnv("HOME", tmpHome);
     vi.resetModules();
     const { simpleGit } = await import("simple-git");
@@ -76,7 +76,7 @@ describe("applyWizardAnswers", () => {
     });
     const { existsSync, readFileSync } = await import("node:fs");
     expect(existsSync(join(localPath, ".git"))).toBe(true);
-    const cfg = JSON.parse(readFileSync(join(tmpHome, ".vibebook", "config.json"), "utf8"));
+    const cfg = JSON.parse(readFileSync(join(tmpHome, ".memarium", "config.json"), "utf8"));
     expect(cfg.repoUrl).toBe(originUrl);
     expect(cfg.repoPath).toBe(localPath);
     expect(cfg.runner).toBe("claude-cli");

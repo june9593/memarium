@@ -1,4 +1,4 @@
-# vibebook — contributor / AI-agent guide
+# memarium — contributor / AI-agent guide
 
 > If you're an AI agent working in this repo (Claude Code, Codex, Copilot,
 > etc.), read this once at the start of any non-trivial task. If you're
@@ -7,15 +7,15 @@
 
 ## What this project is
 
-**vibebook (npm)** = the **sync + resume + aggregate** half of a two-package
+**memarium (npm)** = the **sync + resume + aggregate** half of a two-package
 system. Cross-device transport for Claude Code + VS Code Copilot Chat
 sessions, plus the read-side commands (`resume`, `list-sessions`, `show`).
 No LLM calls — pure I/O.
 
 The **digest + recall** half lives in the separate
-`june9593/vibebook-plugin` repo (`~/edge/vibebook-plugin/`), installed
-into Claude Code via `/plugin install vibebook`. That's where chronicles,
-topics, the /vibebook write skill, the /vibebook-recall read skill, and
+`june9593/memarium-plugin` repo (`~/edge/memarium-plugin/`), installed
+into Claude Code via `/plugin install memarium`. That's where chronicles,
+topics, the /memarium write skill, the /memarium-recall read skill, and
 the Astro book site template live.
 
 **Active version**: check `package.json`. Never hard-code a version in
@@ -29,7 +29,7 @@ src/
   commands/
     init.ts, init-wizard.ts  # interactive + non-interactive init
     sync.ts                  # extract sessions → write md → push + overlay (P7)
-    upgrade.ts               # `vibebook upgrade` = npm install -g vibebook@latest
+    upgrade.ts               # `memarium upgrade` = npm install -g memarium@latest
     doctor.ts                # health check
     workflow.ts              # CI aggregate workflow installer (writes to main)
     crypt.ts                 # git clean/smudge filter setup
@@ -53,10 +53,9 @@ src/
   crypto.ts, git-ops.ts, config.ts, index-store.ts, types.ts, ...
 
 assets/
-  workflows/vibebook-aggregate.yml   # template; `vibebook workflow init` writes it to main
+  workflows/memarium-aggregate.yml   # template; `memarium workflow init` writes it to main
   scripts/merge-books.mjs            # CI aggregator — unions book/ + raw_sessions/ from device branches
 
-site-template/                       # Astro source for `vibebook build-site` (kept for parity)
 marketing-site/                      # project landing page (live at Pages)
 ```
 
@@ -84,20 +83,20 @@ marketing-site/                      # project landing page (live at Pages)
      skip empty-shell sessions (`messages.length === 0`, 0.7.1).
 
 4. **Per-clone read-only overlay** (0.8.0, `src/aggregated-store.ts`):
-   sync refreshes a second git worktree at `~/.vibebook/aggregated/`
-   tracking `origin/main`. Shares `.git` with `~/.vibebook/session-repo/`
+   sync refreshes a second git worktree at `~/.memarium/aggregated/`
+   tracking `origin/main`. Shares `.git` with `~/.memarium/session-repo/`
    so the smudge filter is inherited. `list-sessions` and `resume` read
    both indices; own wins on collision. **Don't try to commit anything
    to that worktree** — it's CI's territory (merge-books.mjs writes it
    on main).
 
-5. **CI aggregation lives on main** (0.5.3 fix). `vibebook workflow init`
-   installs `vibebook-aggregate.yml` + `merge-books.mjs` to the **main**
+5. **CI aggregation lives on main** (0.5.3 fix). `memarium workflow init`
+   installs `memarium-aggregate.yml` + `merge-books.mjs` to the **main**
    branch, not the device branch. Workflow triggers on push to any
    non-main branch and runs `merge-books.mjs` which: (a) merges device
    branches' `book/` (dedup chronicles by threadId, per-device topic
    forks, union cards), and (b) aggregates raw_sessions/ + writes
-   `.vibebook/index.aggregated.json` (P7, 0.8.0). Don't add scripts/
+   `.memarium/index.aggregated.json` (P7, 0.8.0). Don't add scripts/
    to device branches.
 
 ## Versioning + publish workflow
@@ -113,7 +112,7 @@ git push origin <branch> && git push origin vX.Y.Z   # PR if not on main
 ```
 
 There is **no `.claude-plugin/` directory** in this repo anymore (moved to
-vibebook-plugin since the 0.5 slim split) and **no `scripts/sync-plugin-version.mjs`**.
+memarium-plugin since the 0.5 slim split) and **no `scripts/sync-plugin-version.mjs`**.
 Just bump `package.json` and tag. No manifests to mirror.
 
 **Then stop.** `npm publish` is a manual step Yue runs himself (OTP
@@ -130,7 +129,7 @@ Bump rules:
 - Vitest, 230+ tests (count climbs with each feature; `npx vitest run` for
   the actual current count). Add tests for every behavioral change.
 - Tests use `mkdtempSync` + `vi.stubEnv("HOME", ...)` to sandbox file
-  system + config; no test should touch real `~/.claude` or `~/.vibebook`.
+  system + config; no test should touch real `~/.claude` or `~/.memarium`.
 - For tests that involve git, build a fixture local repo with `git init`
   (not network).
 - Source-adapter tests live in `tests/sources/` with fixtures under
@@ -144,24 +143,27 @@ Bump rules:
   publish accidentally shipped 21 stale files). Don't remove the `clean`
   script.
 - `dist/` is `.gitignore`'d but in `npm pack`; don't add it to `.npmignore`.
-- `site-template/node_modules` is huge; `.npmignore` excludes it. Don't
-  remove that line.
+- The book reading site (`build-site` / `serve`) lives in the **plugin**,
+  not here — those commands moved to memarium-plugin in 0.5. The dead
+  npm-side `site-template/` + `workflow pages-init` were removed in 0.13.0.
+  Don't re-add a book-site builder to this repo; `marketing-site/` (the
+  project landing page) is unrelated and stays.
 - Don't add `docs/` back to git — it was untracked on 2026-04-29 to
   open-source the repo. `docs/superpowers/roadmap.md` is Yue's local
   working notes; never `git add docs/`.
-- **Multiple vibebook installs gotcha**: a user can have `vibebook` on
-  PATH from both Homebrew's npm prefix (`/opt/homebrew/bin/vibebook`)
-  AND nvm's npm prefix simultaneously. `which vibebook` resolves by
-  PATH order, so `vibebook upgrade` might install 0.X to one prefix
+- **Multiple memarium installs gotcha**: a user can have `memarium` on
+  PATH from both Homebrew's npm prefix (`/opt/homebrew/bin/memarium`)
+  AND nvm's npm prefix simultaneously. `which memarium` resolves by
+  PATH order, so `memarium upgrade` might install 0.X to one prefix
   while the user's shell keeps resolving the old version from the
   other. When debugging "user says they ran 0.X but the symptoms say
-  0.Y", check both prefixes and `which vibebook` in the user's actual
+  0.Y", check both prefixes and `which memarium` in the user's actual
   shell.
 
 ## Where to find more
 
-- Public docs: `README.md` (rendered on github.com/june9593/vibebook)
-- Plugin docs: `~/edge/vibebook-plugin/README.md` + its `skills/vibebook/SKILL.md`
+- Public docs: `README.md` (rendered on github.com/june9593/memarium)
+- Plugin docs: `~/edge/memarium-plugin/README.md` + its `skills/memarium/SKILL.md`
 - Yue's working roadmap: `docs/superpowers/roadmap.md` (gitignored;
   audit it periodically — most "open" items there have actually
   shipped, the roadmap just lags behind)

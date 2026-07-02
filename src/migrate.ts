@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { simpleGit } from "simple-git";
-import { LEGACY_REPO_DATA_DIR, REPO_DATA_DIR } from "./repo-data-dir.js";
+import { LEGACY_REPO_DATA_DIRS, REPO_DATA_DIR } from "./repo-data-dir.js";
 
 /**
  * One-shot migration for repos created before per-device-branches existed.
@@ -31,29 +31,26 @@ export async function migrateLegacyMainToDevice(
 }
 
 /**
- * One-shot migration: rename in-repo data dir `.memvc/` → `.vibebook/`.
+ * One-shot migration: rename an in-repo legacy data dir → `.memarium/`.
  *
- * Project was renamed memvc → vibebook (npm name conflict). Originally the
- * in-repo data dir was kept as `.memvc/` for backwards compatibility, but
- * that left the project's old name leaking into every memory repo. This
- * migration finishes the rename: any sync/digest run that sees a `.memvc/`
- * directory and no `.vibebook/` directory does the move via `git mv` (so
- * history follows) and stages it for the next commit.
+ * The project was renamed memvc → vibebook → memarium. Any sync/digest run
+ * that finds a legacy dir (`.vibebook/`, else `.memvc/`) and no `.memarium/`
+ * moves it via `git mv` (so history follows) and stages it for the next
+ * commit. Returns the legacy dir it migrated from (for logging).
  *
  * No-op when:
- *   - the repo has no `.memvc/` (fresh repo, or migration already done)
- *   - the repo already has `.vibebook/` (migration already done; old dir is
- *     left alone in case the user partially-merged something)
+ *   - the repo has no legacy dir (fresh repo, or migration already done)
+ *   - the repo already has `.memarium/` (migration already done)
  *   - the repo isn't a git repo (we still do a non-git rename so non-pushing
  *     local-only mode works)
  */
 export async function migrateLegacyDataDir(
   repoPath: string,
-): Promise<{ migrated: boolean; viaGit: boolean }> {
-  const legacy = join(repoPath, LEGACY_REPO_DATA_DIR);
+): Promise<{ migrated: boolean; viaGit: boolean; from?: string }> {
   const target = join(repoPath, REPO_DATA_DIR);
-  if (!existsSync(legacy)) return { migrated: false, viaGit: false };
   if (existsSync(target)) return { migrated: false, viaGit: false };
+  const from = LEGACY_REPO_DATA_DIRS.find((d) => existsSync(join(repoPath, d)));
+  if (!from) return { migrated: false, viaGit: false };
 
   const isGitRepo = existsSync(join(repoPath, ".git"));
   if (isGitRepo) {
@@ -61,15 +58,15 @@ export async function migrateLegacyDataDir(
     // git mv preserves history. Use the directory form; git stages every file
     // under it. The result is staged but not committed — runSync's commit
     // bundles it with the rest of the sync's paths.
-    await git.raw(["mv", LEGACY_REPO_DATA_DIR, REPO_DATA_DIR]);
-    return { migrated: true, viaGit: true };
+    await git.raw(["mv", from, REPO_DATA_DIR]);
+    return { migrated: true, viaGit: true, from };
   }
 
   // Non-git fallback: plain rename. Used by local-only mode + tests that
   // never init a git repo.
   const { renameSync } = await import("node:fs");
-  renameSync(legacy, target);
-  return { migrated: true, viaGit: false };
+  renameSync(join(repoPath, from), target);
+  return { migrated: true, viaGit: false, from };
 }
 
 /** Returns the list of repo-rooted paths a successful data-dir migration produces, suitable for `git add`. */

@@ -116,7 +116,7 @@ export function chooseInvocation(prompt: string, shortId: string): string[] {
   if (Buffer.byteLength(prompt, "utf8") < ARG_MAX_BYTES * 0.9) {
     return ["claude", prompt];
   }
-  const tmpPath = join(tmpdir(), `.vibebook-resume-${shortId}.md`);
+  const tmpPath = join(tmpdir(), `.memarium-resume-${shortId}.md`);
   writeFileSync(tmpPath, prompt, "utf8");
   return ["claude", `Read ${tmpPath} and act on the instructions there.`];
 }
