@@ -3,7 +3,7 @@ export type Tool = "claude" | "copilot";
 /** A single rich content block from the source jsonl. Mirrors the
  *  Anthropic API content block shape so renderers can produce markdown
  *  that captures the full conversation, including tool calls and results
- *  (which previous memarium versions stripped).
+ *  (which earlier versions stripped).
  *
  *  Sources that don't expose tool data (e.g. Copilot Chat) emit only
  *  `text` and `thinking` blocks. Sources that do (Claude Code) emit

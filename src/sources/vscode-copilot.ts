@@ -116,7 +116,7 @@ function parseCopilotJson(sourcePath: string, content: string, workspacePath: st
 /**
  * chatSessions/<id>.jsonl is a *live state log* with a rolling-window snapshot
  * pattern, NOT a complete conversation transcript. We discovered this on
- * 2026-05-22 after memarium 0.5/0.6 was found to only capture the LAST turn
+ * 2026-05-22 after vibebook 0.5/0.6 was found to only capture the LAST turn
  * (~5–8% of the actual conversation) on multi-turn Copilot agent sessions.
  *
  * Event schema:

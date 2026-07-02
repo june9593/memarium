@@ -89,12 +89,13 @@ export async function workflowInitCmd(opts: { force?: boolean; noPush?: boolean 
     return;
   }
 
-  // Opportunistic: rename legacy `.memvc/` → `.memarium/` if the user skipped
-  // it on earlier syncs. This happens on the user's main working tree (device
-  // branch), independent of the main-side workflow push below.
+  // Opportunistic: rename the newest legacy data dir (`.vibebook/`, else
+  // `.memvc/`) → `.memarium/` if the user skipped it on earlier syncs. This
+  // happens on the user's main working tree (device branch), independent of
+  // the main-side workflow push below.
   const dataDirMig = await migrateLegacyDataDir(cfg.repoPath);
   if (dataDirMig.migrated) {
-    console.log(chalk.green(`renamed legacy .memvc/ → .memarium/ ${dataDirMig.viaGit ? "(via git mv)" : ""}`));
+    console.log(chalk.green(`renamed legacy ${dataDirMig.from}/ → .memarium/ ${dataDirMig.viaGit ? "(via git mv)" : ""}`));
   }
 
   const git = await ensureRepo(cfg.repoPath, cfg.repoUrl);
