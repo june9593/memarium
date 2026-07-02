@@ -11,11 +11,11 @@ describe("resumeCmd (0.6 — context-as-prompt)", () => {
     vi.resetModules();
     fakeHome = mkdtempSync(join(tmpdir(), "vb-resume06-"));
     vi.stubEnv("HOME", fakeHome);
-    repoPath = join(fakeHome, ".vibebook/session-repo");
-    mkdirSync(join(repoPath, ".vibebook"), { recursive: true });
-    mkdirSync(join(fakeHome, ".vibebook"), { recursive: true });
+    repoPath = join(fakeHome, ".memarium/session-repo");
+    mkdirSync(join(repoPath, ".memarium"), { recursive: true });
+    mkdirSync(join(fakeHome, ".memarium"), { recursive: true });
     writeFileSync(
-      join(fakeHome, ".vibebook/config.json"),
+      join(fakeHome, ".memarium/config.json"),
       JSON.stringify({
         repoPath,
         repoUrl: "",
@@ -36,7 +36,7 @@ describe("resumeCmd (0.6 — context-as-prompt)", () => {
     mkdirSync(join(repoPath, dateDir), { recursive: true });
     writeFileSync(join(repoPath, dateDir, `${base}.md`), "---\nsessionId: abc12345\n---\n\n## User\n\nhi\n");
     writeFileSync(
-      join(repoPath, ".vibebook/index.json"),
+      join(repoPath, ".memarium/index.json"),
       JSON.stringify({
         version: 1,
         entries: {
@@ -106,7 +106,7 @@ describe("resumeCmd (0.6 — context-as-prompt)", () => {
 
   it("falls back from .raw.json relativePath to .md sibling (0.5.x legacy entry)", async () => {
     // Mutate the index entry to point at a legacy .raw.json path
-    const idxPath = join(repoPath, ".vibebook/index.json");
+    const idxPath = join(repoPath, ".memarium/index.json");
     const idx = JSON.parse(readFileSync(idxPath, "utf8"));
     const key = Object.keys(idx.entries)[0]!;
     idx.entries[key].relativePath = "raw_sessions/claude/my-app/2026-05-10/fix__abc12345.raw.json";

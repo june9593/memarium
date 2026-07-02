@@ -15,12 +15,12 @@ export interface ListSessionsOptions {
 }
 
 /** Same shape as IndexEntry but with a derived `isOwn` flag so callers know
- *  whether to look at sessionRepo/ or ~/.vibebook/aggregated/ for the .md. */
+ *  whether to look at sessionRepo/ or ~/.memarium/aggregated/ for the .md. */
 export type ListedSession = IndexEntry & { isOwn: boolean };
 
 /**
  * Returns sessions from BOTH the device's own spool index AND the union
- * `.vibebook/index.aggregated.json` written by CI to main. Dedupes by
+ * `.memarium/index.aggregated.json` written by CI to main. Dedupes by
  * `tool:sessionId` — when the same session appears in both, the own copy
  * wins (it carries the latest local sourceSha256 / mtime).
  *

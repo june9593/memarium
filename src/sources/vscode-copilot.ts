@@ -116,7 +116,7 @@ function parseCopilotJson(sourcePath: string, content: string, workspacePath: st
 /**
  * chatSessions/<id>.jsonl is a *live state log* with a rolling-window snapshot
  * pattern, NOT a complete conversation transcript. We discovered this on
- * 2026-05-22 after vibebook 0.5/0.6 was found to only capture the LAST turn
+ * 2026-05-22 after memarium 0.5/0.6 was found to only capture the LAST turn
  * (~5–8% of the actual conversation) on multi-turn Copilot agent sessions.
  *
  * Event schema:
@@ -317,7 +317,7 @@ function parseCopilotTranscript(sourcePath: string, content: string, workspacePa
       const rawReasoning = typeof obj?.data?.reasoningText === "string" ? obj.data.reasoningText : "";
       const text = sanitizeMessageText(rawText);
       const reasoning = sanitizeMessageText(rawReasoning);
-      // tool requests are intentionally NOT included — vibebook summarizes
+      // tool requests are intentionally NOT included — memarium summarizes
       // intent + outcome, not tool traces. Drop the message only when both
       // text AND reasoning are empty.
       if (text || reasoning) {

@@ -3,26 +3,26 @@ import Base from "../layouts/Base.astro";
 ---
 <Base
   lang="en"
-  title="vibebook — sync + resume your AI coding sessions across machines"
-  description="The npm CLI half of vibebook: sync Claude Code + Copilot Chat sessions to a private GitHub repo, then resume them on any machine. Companion to the vibebook Claude Code plugin which adds digest + recall."
+  title="memarium — sync + resume your AI coding sessions across machines"
+  description="The npm CLI half of memarium: sync Claude Code + Copilot Chat sessions to a private GitHub repo, then resume them on any machine. Companion to the memarium Claude Code plugin which adds digest + recall."
 >
   <section class="hero container">
     <h1>Your AI sessions, portable across every machine you code on.</h1>
     <p class="lede">
-      <strong>vibebook</strong> is the npm CLI that syncs your Claude Code
+      <strong>memarium</strong> is the npm CLI that syncs your Claude Code
       and VS Code Copilot Chat sessions to a private GitHub repo, then lets
       you <strong>resume</strong> any session on any machine. Pair it with
-      the optional <a href="https://june9593.github.io/vibebook-plugin/">vibebook
+      the optional <a href="https://june9593.github.io/memarium-plugin/">memarium
       Claude Code plugin</a> for in-session digest + recall.
     </p>
     <div class="badges">
-      <span class="badge">npm install -g <code>vibebook</code></span>
+      <span class="badge">npm install -g <code>memarium</code></span>
       <span class="badge">Claude Code · Copilot Chat</span>
       <span class="badge">MIT</span>
     </div>
     <div class="cta-row">
       <a class="btn-primary" href="#install">Install</a>
-      <a class="btn-secondary" href="https://github.com/june9593/vibebook">View on GitHub</a>
+      <a class="btn-secondary" href="https://github.com/june9593/memarium">View on GitHub</a>
     </div>
   </section>
 
@@ -41,9 +41,9 @@ import Base from "../layouts/Base.astro";
       and re-derives the same root cause from scratch.
     </p>
     <p class="lede" style="margin-top: var(--space-5);">
-      vibebook keeps every session under <code>~/.vibebook/session-repo/</code>
+      memarium keeps every session under <code>~/.memarium/session-repo/</code>
       and pushes it to your private GitHub repo. Any machine that's pulled
-      can <code>vibebook resume &lt;sessionId&gt;</code> and pick up where
+      can <code>memarium resume &lt;sessionId&gt;</code> and pick up where
       another machine left off — same context, same files-read, same
       decisions, same dead ends.
     </p>
@@ -53,7 +53,7 @@ import Base from "../layouts/Base.astro";
     <h2>Two superpowers</h2>
     <div class="three-col" style="grid-template-columns: 1fr 1fr;">
       <div class="feature-card">
-        <h3><code>vibebook sync</code></h3>
+        <h3><code>memarium sync</code></h3>
         <p>
           Walks <code>~/.claude/projects/</code> and your VS Code Copilot
           Chat storage, copies new sessions into the spool (with the
@@ -69,7 +69,7 @@ import Base from "../layouts/Base.astro";
         </p>
       </div>
       <div class="feature-card">
-        <h3><code>vibebook resume &lt;id&gt;</code></h3>
+        <h3><code>memarium resume &lt;id&gt;</code></h3>
         <p>
           Copies a session's <code>.jsonl</code> from the spool into
           <code>~/.claude/projects/&lt;encoded-cwd&gt;/&lt;newId&gt;.jsonl</code>
@@ -101,15 +101,15 @@ import Base from "../layouts/Base.astro";
         Saturday morning, on your desktop. You sit down with coffee and
         run:
       </p>
-      <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">vibebook sync                            # pull anything new from your other machines
-vibebook list-sessions --since 2d        # find yesterday's session
-vibebook resume 1f2c3d                   # copy + emit `claude --resume`</pre>
+      <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">memarium sync                            # pull anything new from your other machines
+memarium list-sessions --since 2d        # find yesterday's session
+memarium resume 1f2c3d                   # copy + emit `claude --resume`</pre>
       <p>
-        vibebook fetches your laptop's branch, finds yesterday's session in
+        memarium fetches your laptop's branch, finds yesterday's session in
         the spool, copies the <code>.jsonl</code> into the desktop's
         <code>~/.claude/projects/</code>, rewrites <code>/Users/laptop-me</code>
         paths to <code>/Users/desktop-me</code> (configured once via
-        <code>vibebook config --map-path</code>), and prints:
+        <code>memarium config --map-path</code>), and prints:
       </p>
       <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">Session forked: 1f2c3d-... → 8a7b6c5d-...
 Continue with:
@@ -128,22 +128,22 @@ Continue with:
   <section class="container" id="install">
     <h2>Install</h2>
     <p>Requires Node 20+.</p>
-    <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">npm install -g vibebook
-vibebook init</pre>
+    <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">npm install -g memarium
+memarium init</pre>
     <p>
       The wizard walks you through the private GitHub repo URL, optional
       encryption setup, and per-device branch naming. After that,
-      <code>vibebook sync</code> on any machine pushes new sessions and
-      pulls everyone else's, and <code>vibebook resume &lt;id&gt;</code>
+      <code>memarium sync</code> on any machine pushes new sessions and
+      pulls everyone else's, and <code>memarium resume &lt;id&gt;</code>
       lets you continue any of them locally.
     </p>
     <p>
       Want digest + recall on top? Install the optional Claude Code plugin:
     </p>
-    <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">/plugin marketplace add june9593/vibebook-plugin
-/plugin install vibebook</pre>
+    <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">/plugin marketplace add june9593/memarium-plugin
+/plugin install memarium</pre>
     <p>
-      Plugin and CLI share <code>~/.vibebook/session-repo/</code> — install
+      Plugin and CLI share <code>~/.memarium/session-repo/</code> — install
       one, both, or neither, in any order.
     </p>
   </section>
@@ -155,27 +155,27 @@ vibebook init</pre>
         <tr><th>Command</th><th>What it does</th></tr>
       </thead>
       <tbody>
-        <tr><td><code>vibebook init</code></td><td>Interactive wizard. Clones your private repo to <code>~/.vibebook/session-repo/</code>, sets up the device branch.</td></tr>
-        <tr><td><code>vibebook sync</code></td><td>Extract new Claude Code + Copilot sessions on this machine, commit, push.</td></tr>
-        <tr><td><code>vibebook list-sessions [--project] [--since] [--device]</code></td><td>List sessions in the spool, filterable for resume.</td></tr>
-        <tr><td><code>vibebook resume &lt;sessionId&gt;</code></td><td>Fork a spool session into <code>~/.claude/projects/</code>, print <code>claude --resume</code> command.</td></tr>
-        <tr><td><code>vibebook config [--map-path FROM=TO]</code></td><td>Read or modify <code>~/.vibebook/config.json</code> (e.g. cross-device path map).</td></tr>
-        <tr><td><code>vibebook list</code> · <code>show</code> · <code>cat</code></td><td>Browse the spool from the shell.</td></tr>
-        <tr><td><code>vibebook crypt &lt;action&gt;</code></td><td>Manage the git clean/smudge encryption filter.</td></tr>
-        <tr><td><code>vibebook workflow</code></td><td>Install the cross-device merge GitHub Action.</td></tr>
-        <tr><td><code>vibebook doctor</code></td><td>Health check (CLI / npm / git-crypt / plugin / spool format).</td></tr>
-        <tr><td><code>vibebook upgrade</code></td><td><code>npm install -g vibebook@latest</code> wrapper.</td></tr>
+        <tr><td><code>memarium init</code></td><td>Interactive wizard. Clones your private repo to <code>~/.memarium/session-repo/</code>, sets up the device branch.</td></tr>
+        <tr><td><code>memarium sync</code></td><td>Extract new Claude Code + Copilot sessions on this machine, commit, push.</td></tr>
+        <tr><td><code>memarium list-sessions [--project] [--since] [--device]</code></td><td>List sessions in the spool, filterable for resume.</td></tr>
+        <tr><td><code>memarium resume &lt;sessionId&gt;</code></td><td>Fork a spool session into <code>~/.claude/projects/</code>, print <code>claude --resume</code> command.</td></tr>
+        <tr><td><code>memarium config [--map-path FROM=TO]</code></td><td>Read or modify <code>~/.memarium/config.json</code> (e.g. cross-device path map).</td></tr>
+        <tr><td><code>memarium list</code> · <code>show</code> · <code>cat</code></td><td>Browse the spool from the shell.</td></tr>
+        <tr><td><code>memarium crypt &lt;action&gt;</code></td><td>Manage the git clean/smudge encryption filter.</td></tr>
+        <tr><td><code>memarium workflow</code></td><td>Install the cross-device merge GitHub Action.</td></tr>
+        <tr><td><code>memarium doctor</code></td><td>Health check (CLI / npm / git-crypt / plugin / spool format).</td></tr>
+        <tr><td><code>memarium upgrade</code></td><td><code>npm install -g memarium@latest</code> wrapper.</td></tr>
       </tbody>
     </table>
   </section>
 
   <section class="container">
     <h2>Files written</h2>
-    <p>Everything lives under <code>~/.vibebook/</code>:</p>
+    <p>Everything lives under <code>~/.memarium/</code>:</p>
     <ul style="color: var(--olive-gray); padding-left: var(--space-6); font-family: var(--font-mono); font-size: 0.95rem;">
       <li><code>session-repo/</code> — git-tracked, pushes to your private GitHub repo</li>
       <li><code>session-repo/raw_sessions/&lt;tool&gt;/&lt;project&gt;/&lt;date&gt;/*.&#123;md,raw.json,jsonl&#125;</code> — synced session copies plus the original <code>.jsonl</code> (preserved for resume)</li>
-      <li><code>session-repo/.vibebook/index.json</code> — per-session entry index</li>
+      <li><code>session-repo/.memarium/index.json</code> — per-session entry index</li>
       <li><code>config.json</code>, <code>passphrase</code>, <code>repo-salt.json</code> — CLI's local config</li>
       <li><code>resume-forks.json</code> — registry mapping forked sessionIds to their origin</li>
     </ul>
@@ -187,15 +187,15 @@ vibebook init</pre>
   </section>
 
   <section class="container">
-    <h2>Sibling project: vibebook plugin</h2>
+    <h2>Sibling project: memarium plugin</h2>
     <p>
-      The companion <a href="https://june9593.github.io/vibebook-plugin/">Claude
+      The companion <a href="https://june9593.github.io/memarium-plugin/">Claude
       Code plugin</a> is what turns synced sessions into a searchable book.
       It adds two slash commands:
     </p>
     <ul style="color: var(--olive-gray); padding-left: var(--space-6);">
-      <li><strong><code>/vibebook</code></strong> — digest sessions into <strong>chronicles</strong> (one per work thread, AI-first frontmatter) and <strong>topics</strong> (mid-grain subsystem indexes).</li>
-      <li><strong><code>/vibebook-recall</code></strong> — three-stage progressive recall before new work: project topic list → topic chronicles → full bodies. Lets agents stand on past learnings instead of rediscovering them.</li>
+      <li><strong><code>/memarium</code></strong> — digest sessions into <strong>chronicles</strong> (one per work thread, AI-first frontmatter) and <strong>topics</strong> (mid-grain subsystem indexes).</li>
+      <li><strong><code>/memarium-recall</code></strong> — three-stage progressive recall before new work: project topic list → topic chronicles → full bodies. Lets agents stand on past learnings instead of rediscovering them.</li>
     </ul>
     <p>
       The plugin works without the npm CLI (digest local sessions only)
@@ -208,11 +208,11 @@ vibebook init</pre>
   <section class="container" style="padding-bottom: var(--space-24);">
     <h2>Project links</h2>
     <ul style="color: var(--olive-gray); padding-left: var(--space-6);">
-      <li><a href="https://github.com/june9593/vibebook">GitHub source (npm CLI)</a></li>
-      <li><a href="https://www.npmjs.com/package/vibebook">npm package</a></li>
-      <li><a href="https://github.com/june9593/vibebook/blob/main/CHANGELOG.md">Changelog</a></li>
-      <li><a href="https://github.com/june9593/vibebook/issues">Issues / feedback</a></li>
-      <li><a href="https://june9593.github.io/vibebook-plugin/">Sibling project: vibebook Claude Code plugin (digest + recall)</a></li>
+      <li><a href="https://github.com/june9593/memarium">GitHub source (npm CLI)</a></li>
+      <li><a href="https://www.npmjs.com/package/memarium">npm package</a></li>
+      <li><a href="https://github.com/june9593/memarium/blob/main/CHANGELOG.md">Changelog</a></li>
+      <li><a href="https://github.com/june9593/memarium/issues">Issues / feedback</a></li>
+      <li><a href="https://june9593.github.io/memarium-plugin/">Sibling project: memarium Claude Code plugin (digest + recall)</a></li>
     </ul>
     <p class="muted small" style="margin-top: var(--space-6);">
       MIT licensed · Built by <a href="https://github.com/june9593">@june9593</a>

@@ -34,9 +34,9 @@ export class ClaudeCodeAdapter implements SourceAdapter {
       for (const e of entries) {
         const p = join(dir, e.name);
         if (e.isDirectory()) {
-          // Skip our own scratch dirs and system tmpdirs — see isVibebookOrTmpProjectDir.
+          // Skip our own scratch dirs and system tmpdirs — see isMemariumOrTmpProjectDir.
           // We only filter at the top level (entries directly under ~/.claude/projects/).
-          if (dir === this.root && isVibebookOrTmpProjectDir(e.name)) continue;
+          if (dir === this.root && isMemariumOrTmpProjectDir(e.name)) continue;
           // Skip Claude Code's own subagent transcript dirs at any depth.
           // These appear as ~/.claude/projects/<proj>/<sessionId>/subagents/agent-*.jsonl
           // and contain agentic prompt boilerplate ("You are implementing Task X")
@@ -62,19 +62,19 @@ export class ClaudeCodeAdapter implements SourceAdapter {
 }
 
 /**
- * Skip Claude project directories that correspond to vibebook's own scratch
+ * Skip Claude project directories that correspond to memarium's own scratch
  * subprocesses. We deliberately do NOT filter by tmpdir-prefix alone —
  * developers may legitimately run `claude` in /tmp/experiment etc., and we
  * shouldn't silently drop their work. We require one of the known scratch
- * substrings (which only vibebook-spawned cwds contain) to confirm provenance.
+ * substrings (which only memarium-spawned cwds contain) to confirm provenance.
  *
- * Both `vibebook-claude-` and `memvc-claude-` are recognized — the latter is
+ * Both `memarium-claude-` and `memvc-claude-` are recognized — the latter is
  * the legacy name from before the project was renamed; old user machines
  * may still have leftover dirs from pre-rename runs that crashed before
  * cleanup, and we want sync to skip them too.
  */
-export function isVibebookOrTmpProjectDir(name: string): boolean {
-  return name.includes("-vibebook-claude-") || name.includes("-memvc-claude-");
+export function isMemariumOrTmpProjectDir(name: string): boolean {
+  return name.includes("-memarium-claude-") || name.includes("-memvc-claude-");
 }
 
 function parseClaudeJsonl(sourcePath: string, content: string): NormalizedSession {
@@ -93,7 +93,7 @@ function parseClaudeJsonl(sourcePath: string, content: string): NormalizedSessio
     if (obj.type === "user" || obj.type === "assistant") {
       // isMeta=true entries are system-injected pseudo-messages (slash-command
       // skill body, command output replays, etc.) — never real user input.
-      // Without this filter, a session that started with `hi` + `/vibebook`
+      // Without this filter, a session that started with `hi` + `/memarium`
       // (both too short to survive sanitization) would derive its displayName
       // from the injected skill template, producing titles like
       // "## Step 0 — Detect the mode (DO THIS FIRST)…" with no real user prompts
@@ -169,7 +169,7 @@ function parseClaudeJsonl(sourcePath: string, content: string): NormalizedSessio
  *   - {type:"thinking", thinking:"..."} → reasoning (usually empty in CLI
  *     output because the API returns an encrypted signature instead;
  *     rare cases ship plaintext when the user enabled it)
- *   - {type:"tool_use" / "tool_result"} → ignored (vibebook doesn't
+ *   - {type:"tool_use" / "tool_result"} → ignored (memarium doesn't
  *     summarize tool traces; logex does the same)
  */
 function extractParts(message: any): {

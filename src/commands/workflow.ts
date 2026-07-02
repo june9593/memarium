@@ -22,25 +22,25 @@ function assetPath(rel: string): string {
     if (existsSync(c)) return c;
   }
   throw new Error(
-    `vibebook bundled asset not found: ${rel}. Tried:\n  ${candidates.join("\n  ")}\nIf you installed vibebook from npm, please file an issue.`,
+    `memarium bundled asset not found: ${rel}. Tried:\n  ${candidates.join("\n  ")}\nIf you installed memarium from npm, please file an issue.`,
   );
 }
 
-const WORKFLOW_REL = ".github/workflows/vibebook-aggregate.yml";
+const WORKFLOW_REL = ".github/workflows/memarium-aggregate.yml";
 const SCRIPT_REL = "scripts/merge-books.mjs";
 
 /**
  * Read the workflow yaml template and substitute the user's `bookLocale`
- * into the `VIBEBOOK_LOCALE` env line. Done at install time so the
+ * into the `MEMARIUM_LOCALE` env line. Done at install time so the
  * locale travels with the workflow on main (not pulled per-CI-run).
  */
 function renderWorkflowYaml(bookLocale: string): string {
-  const raw = readFileSync(assetPath("assets/workflows/vibebook-aggregate.yml"), "utf8");
-  return raw.replace("__VIBEBOOK_LOCALE__", bookLocale);
+  const raw = readFileSync(assetPath("assets/workflows/memarium-aggregate.yml"), "utf8");
+  return raw.replace("__MEMARIUM_LOCALE__", bookLocale);
 }
 
 /**
- * `vibebook workflow init` — install the CI aggregation workflow + merge
+ * `memarium workflow init` — install the CI aggregation workflow + merge
  * script directly onto the **main** branch (where GitHub Actions actually
  * reads them from), without touching the user's current device branch or
  * working tree.
@@ -83,18 +83,18 @@ export async function workflowInitCmd(opts: { force?: boolean; noPush?: boolean 
     console.log(chalk.yellow(
       "  --no-push is incompatible with the new workflow-init flow (which writes\n" +
       "  directly to origin/main via a temp worktree). To inspect files locally,\n" +
-      "  see assets/workflows/vibebook-aggregate.yml + assets/scripts/merge-books.mjs\n" +
-      "  in the vibebook npm package.",
+      "  see assets/workflows/memarium-aggregate.yml + assets/scripts/merge-books.mjs\n" +
+      "  in the memarium npm package.",
     ));
     return;
   }
 
-  // Opportunistic: rename legacy `.memvc/` → `.vibebook/` if the user skipped
+  // Opportunistic: rename legacy `.memvc/` → `.memarium/` if the user skipped
   // it on earlier syncs. This happens on the user's main working tree (device
   // branch), independent of the main-side workflow push below.
   const dataDirMig = await migrateLegacyDataDir(cfg.repoPath);
   if (dataDirMig.migrated) {
-    console.log(chalk.green(`renamed legacy .memvc/ → .vibebook/ ${dataDirMig.viaGit ? "(via git mv)" : ""}`));
+    console.log(chalk.green(`renamed legacy .memvc/ → .memarium/ ${dataDirMig.viaGit ? "(via git mv)" : ""}`));
   }
 
   const git = await ensureRepo(cfg.repoPath, cfg.repoUrl);
@@ -122,29 +122,29 @@ export async function workflowInitCmd(opts: { force?: boolean; noPush?: boolean 
       writeFileSync(scriptAbs, newScript);
       return [WORKFLOW_REL, SCRIPT_REL];
     },
-    "vibebook: install / update CI aggregation workflow + merge-books script",
+    "memarium: install / update CI aggregation workflow + merge-books script",
     (stage) => console.log(chalk.gray(`  ${stage}`)),
   );
   if (r.committed && r.pushed) {
     console.log(chalk.green(`\n✓ workflow + script pushed to origin/main`));
     console.log(chalk.gray("The workflow fires on every push to a non-main branch."));
-    console.log(chalk.gray("Each device's `vibebook sync` will trigger it; CI merges all device book/s into main."));
+    console.log(chalk.gray("Each device's `memarium sync` will trigger it; CI merges all device book/s into main."));
   } else if (!r.committed) {
     console.log(chalk.gray("\nMain already has the latest workflow + script (no-op)."));
   } else {
     console.log(chalk.yellow("\n! committed locally on the temp worktree but push failed."));
-    console.log(chalk.cyan("  Inspect ~/.vibebook/session-repo, fetch origin/main, and retry."));
+    console.log(chalk.cyan("  Inspect ~/.memarium/session-repo, fetch origin/main, and retry."));
   }
 }
 
 /**
  * Install the GitHub Pages workflow that builds + publishes the site
- * (`vibebook build-site` output) on every push to main. Mirror of
+ * (`memarium build-site` output) on every push to main. Mirror of
  * workflowInitCmd's auto-commit/push behavior.
  */
 export async function workflowPagesInitCmd(opts: { force?: boolean; noPush?: boolean } = {}): Promise<void> {
   const cfg = readConfig();
-  const yamlTarget = join(cfg.repoPath, ".github", "workflows", "vibebook-pages.yml");
+  const yamlTarget = join(cfg.repoPath, ".github", "workflows", "memarium-pages.yml");
 
   if (existsSync(yamlTarget) && !opts.force) {
     console.log(chalk.yellow(`already exists: ${yamlTarget}`));
@@ -153,7 +153,7 @@ export async function workflowPagesInitCmd(opts: { force?: boolean; noPush?: boo
   }
 
   mkdirSync(dirname(yamlTarget), { recursive: true });
-  writeFileSync(yamlTarget, readFileSync(assetPath("assets/workflows/vibebook-pages.yml"), "utf8"));
+  writeFileSync(yamlTarget, readFileSync(assetPath("assets/workflows/memarium-pages.yml"), "utf8"));
   console.log(chalk.green(`pages workflow written: ${yamlTarget}`));
   console.log(chalk.cyan(`\nNext: GitHub Settings → Pages → Source: GitHub Actions`));
 
@@ -179,7 +179,7 @@ export async function workflowPagesInitCmd(opts: { force?: boolean; noPush?: boo
       `  Easiest path:\n` +
       `    cd ${cfg.repoPath}\n` +
       `    git checkout main && git pull\n` +
-      `    git add .github/workflows/vibebook-pages.yml && git commit -m 'add pages workflow'\n` +
+      `    git add .github/workflows/memarium-pages.yml && git commit -m 'add pages workflow'\n` +
       `    git push origin main`,
     ));
     return;
@@ -187,8 +187,8 @@ export async function workflowPagesInitCmd(opts: { force?: boolean; noPush?: boo
   await fastForwardBranch(git, "main", (s) => console.log(chalk.gray(`  ${s}`)));
   const r = await commitAndPush(
     git,
-    "vibebook: add GitHub Pages workflow",
-    [".github/workflows/vibebook-pages.yml"],
+    "memarium: add GitHub Pages workflow",
+    [".github/workflows/memarium-pages.yml"],
     "main",
     (stage) => console.log(chalk.gray(`  ${stage}`)),
   );

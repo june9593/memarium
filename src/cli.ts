@@ -21,15 +21,15 @@ function readPackageVersion(): string {
 export async function run(argv: string[]) {
   const program = new Command();
   program
-    .name("vibebook")
+    .name("memarium")
     .description("Vibe coding memory book")
     // Standard CLI convention: -v + --version. Commander defaults to -V
     // (uppercase) which most users don't reach for; we override to lowercase.
-    .version(readPackageVersion(), "-v, --version", "print the installed vibebook version");
+    .version(readPackageVersion(), "-v, --version", "print the installed memarium version");
   program
     .command("init [repoUrl]")
-    .description("Initialize vibebook. Run with no arguments for the interactive wizard, or pass a repoUrl + flags for non-interactive setup.")
-    .option("--local-path <path>", "local checkout path (default ./.vibebook/repo)")
+    .description("Initialize memarium. Run with no arguments for the interactive wizard, or pass a repoUrl + flags for non-interactive setup.")
+    .option("--local-path <path>", "local checkout path (default ./.memarium/repo)")
     .option("--no-digest", "skip the digest pipeline (raw push only)")
     .option("--device <name>", "device branch name (default: sanitized os.hostname())")
     .action(async (
@@ -46,14 +46,14 @@ export async function run(argv: string[]) {
     });
   program
     .command("sync")
-    .description("Extract sessions from local Claude Code + VS Code Copilot Chat, commit + push to your device branch. No LLM call. Run /vibebook in Claude Code afterward to digest.")
+    .description("Extract sessions from local Claude Code + VS Code Copilot Chat, commit + push to your device branch. No LLM call. Run /memarium in Claude Code afterward to digest.")
     .action(async () => {
       const { syncCmd } = await import("./commands/sync.js");
       await syncCmd();
     });
   program
     .command("upgrade")
-    .description("Refresh the npm CLI (`npm install -g vibebook@latest`). Skips the npm step if vibebook is npm-link'd from a dev checkout. To update the Claude Code plugin, run `/plugin update vibebook` in any session.")
+    .description("Refresh the npm CLI (`npm install -g memarium@latest`). Skips the npm step if memarium is npm-link'd from a dev checkout. To update the Claude Code plugin, run `/plugin update memarium` in any session.")
     .option("--no-cli", "skip the `npm install -g` step")
     .action(async (opts: { cli?: boolean }) => {
       const { upgradeCmd } = await import("./commands/upgrade.js");
@@ -61,14 +61,14 @@ export async function run(argv: string[]) {
     });
   program
     .command("doctor")
-    .description("Health check: CLI version on PATH, npm latest, Claude plugin manifest + install entry, ~/.vibebook/config presence, memex availability. Read-only and offline-tolerant.")
+    .description("Health check: CLI version on PATH, npm latest, Claude plugin manifest + install entry, ~/.memarium/config presence, memex availability. Read-only and offline-tolerant.")
     .action(async () => {
       const { doctorCmd } = await import("./commands/doctor.js");
       await doctorCmd();
     });
   program
     .command("prune")
-    .description("Find raw_sessions/*.md files on disk that are not referenced by .vibebook/index.json (orphans from earlier extractor bugs) and optionally delete them. Dry-run by default.")
+    .description("Find raw_sessions/*.md files on disk that are not referenced by .memarium/index.json (orphans from earlier extractor bugs) and optionally delete them. Dry-run by default.")
     .option("--apply", "actually delete the orphan files (default is dry-run)")
     .action(async (opts: { apply?: boolean }) => {
       const { pruneCmd } = await import("./commands/prune.js");
@@ -79,7 +79,7 @@ export async function run(argv: string[]) {
     .description("Manage the GitHub Action that aggregates device branches into main")
     .addCommand(
       new Command("init")
-        .description("Write .github/workflows/vibebook-aggregate.yml + scripts/merge-books.mjs into the configured vibebook repo, then commit + push")
+        .description("Write .github/workflows/memarium-aggregate.yml + scripts/merge-books.mjs into the configured memarium repo, then commit + push")
         .option("--force", "overwrite if files already exist")
         .option("--no-push", "write the files locally but don't auto commit + push")
         .action(async (opts: { force?: boolean; push?: boolean }) => {
@@ -90,7 +90,7 @@ export async function run(argv: string[]) {
     )
     .addCommand(
       new Command("pages-init")
-        .description("Write .github/workflows/vibebook-pages.yml — builds the static site and publishes to GitHub Pages on every push to main.")
+        .description("Write .github/workflows/memarium-pages.yml — builds the static site and publishes to GitHub Pages on every push to main.")
         .option("--force", "overwrite if file already exists")
         .option("--no-push", "write the file locally but don't auto commit + push to main")
         .action(async (opts: { force?: boolean; push?: boolean }) => {
@@ -116,7 +116,7 @@ export async function run(argv: string[]) {
     });
   program
     .command("cat <path>")
-    .description("Print a repo file to stdout. Path is absolute or relative to the configured repoPath. Used by the /vibebook skill to read session md.")
+    .description("Print a repo file to stdout. Path is absolute or relative to the configured repoPath. Used by the /memarium skill to read session md.")
     .action(async (path: string) => {
       const { catCmd } = await import("./commands/cat.js");
       await catCmd(path);
@@ -159,14 +159,14 @@ export async function run(argv: string[]) {
     });
   program
     .command("config")
-    .description("Inspect or modify ~/.vibebook/config.json.")
-    .option("--map-path <FROM=TO>", "add a cross-device path mapping (e.g. /Users/yueA=/Users/yueB) for `vibebook resume`")
+    .description("Inspect or modify ~/.memarium/config.json.")
+    .option("--map-path <FROM=TO>", "add a cross-device path mapping (e.g. /Users/yueA=/Users/yueB) for `memarium resume`")
     .option("--device <name>", "set a stable device branch name (e.g. 'mini2') — overrides the volatile hostname() default")
     .action(async (opts: { mapPath?: string; device?: string }) => {
       if (opts.mapPath) {
         const { setMapPath } = await import("./commands/resume/config-pathmap.js");
         setMapPath(opts.mapPath);
-        console.log(`Added pathMap entry. Current ~/.vibebook/config.json updated.`);
+        console.log(`Added pathMap entry. Current ~/.memarium/config.json updated.`);
         return;
       }
       if (opts.device) {
@@ -177,7 +177,7 @@ export async function run(argv: string[]) {
           console.log(
             `\nNote: your spool repo may still have a local + remote branch named '${previous}'.\n` +
             `If you want to clean those up:\n` +
-            `  cd ~/.vibebook/session-repo\n` +
+            `  cd ~/.memarium/session-repo\n` +
             `  git branch -D '${previous}' 2>/dev/null\n` +
             `  git push origin --delete '${previous}' 2>/dev/null`,
           );

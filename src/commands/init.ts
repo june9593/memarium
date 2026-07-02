@@ -28,9 +28,9 @@ export async function initCmd(opts: InitOptions): Promise<void> {
 
   // Flag mode: non-interactive.
   if (!opts.repoUrl) {
-    throw new Error("repoUrl is required in flag mode (or run `vibebook init` with no args for the wizard)");
+    throw new Error("repoUrl is required in flag mode (or run `memarium init` with no args for the wizard)");
   }
-  const localPath = opts.localPath ?? join(process.cwd(), ".vibebook", "repo");
+  const localPath = opts.localPath ?? join(process.cwd(), ".memarium", "repo");
   const mat = await materializeRepoAtPath(localPath, opts.repoUrl);
   if (mat.kind === "existing" && mat.existingRemote && mat.existingRemote !== opts.repoUrl) {
     console.log(chalk.yellow(
@@ -50,10 +50,10 @@ export async function initCmd(opts: InitOptions): Promise<void> {
     bookLocale: "en",
   };
   writeConfig(cfg);
-  console.log(chalk.green(`vibebook initialized:`));
+  console.log(chalk.green(`memarium initialized:`));
   console.log(`  repo: ${localPath}`);
   console.log(`  remote: ${opts.repoUrl}`);
   console.log(`  device branch: ${cfg.deviceBranch}`);
   console.log(`  digest enabled: ${cfg.digestEnabled}`);
-  console.log(chalk.cyan(`\n  next: vibebook sync  →  open Claude Code  →  /vibebook`));
+  console.log(chalk.cyan(`\n  next: memarium sync  →  open Claude Code  →  /memarium`));
 }

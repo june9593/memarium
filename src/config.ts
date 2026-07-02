@@ -1,10 +1,33 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 
-const CONFIG_DIR = join(homedir(), ".vibebook");
-const CONFIG_PATH = join(CONFIG_DIR, "config.json");
+// Resolved lazily (not module-level consts) so they always reflect the current
+// HOME — important for tests that stub HOME, and correct for a CLI in general.
+function configDir(): string { return join(homedir(), ".memarium"); }
+function configPath(): string { return join(configDir(), "config.json"); }
+
+/** One-shot: move the whole config dir from the old `~/.vibebook/` (project's
+ *  pre-rename name) to `~/.memarium/` if the old one exists and the new one
+ *  doesn't. Idempotent, best-effort. Covers config.json, session-repo/,
+ *  aggregated/, usage/, local-proposals/ in one move, then rewrites the
+ *  absolute `~/.vibebook/` paths stored inside config.json. Runs before reads. */
+export function migrateLegacyConfigDir(): void {
+  const legacy = join(homedir(), ".vibebook");
+  const dir = configDir();
+  if (existsSync(dir) || !existsSync(legacy)) return;
+  try {
+    renameSync(legacy, dir);
+    // Fix stored absolute paths (repoPath etc.) that pointed into ~/.vibebook.
+    const p = configPath();
+    if (existsSync(p)) {
+      const raw = readFileSync(p, "utf8");
+      const fixed = raw.split(legacy).join(dir);
+      if (fixed !== raw) writeFileSync(p, fixed);
+    }
+  } catch { /* best-effort */ }
+}
 
 /** Default cap on concurrent runner calls during the threading phase.
  *  claude-cli can comfortably handle 4 (each spawn is its own subprocess
@@ -34,24 +57,25 @@ const Schema = z.object({
   threadingMaxAttempts: z.number().int().positive().default(DEFAULT_THREADING_MAX_ATTEMPTS),
   digestEnabled: z.boolean().default(true),
   /** Cross-device path translation: source-prefix → this-machine-prefix.
-   *  Used by `vibebook resume` to rewrite jsonl paths from another machine
-   *  into local paths. Set via `vibebook config --map-path A=B`. */
+   *  Used by `memarium resume` to rewrite jsonl paths from another machine
+   *  into local paths. Set via `memarium config --map-path A=B`. */
   pathMap: z.record(z.string()).optional(),
   /** Locale for the rendered book pages (book/index.md, book/_meta/timeline.md,
    *  per-project index pages). Drives string tables in merge-books.mjs via
-   *  the VIBEBOOK_LOCALE env var the workflow yml exports. Default "en". */
+   *  the MEMARIUM_LOCALE env var the workflow yml exports. Default "en". */
   bookLocale: z.enum(["en", "zh"]).default("en"),
 });
 export type Config = z.infer<typeof Schema>;
 
-export function configExists(): boolean { return existsSync(CONFIG_PATH); }
+export function configExists(): boolean { migrateLegacyConfigDir(); return existsSync(configPath()); }
 
 export function readConfig(): Config {
-  if (!existsSync(CONFIG_PATH)) throw new Error("vibebook not initialized. Run `vibebook init <repoUrl>`.");
-  return Schema.parse(JSON.parse(readFileSync(CONFIG_PATH, "utf8")));
+  migrateLegacyConfigDir();
+  if (!existsSync(configPath())) throw new Error("memarium not initialized. Run `memarium init <repoUrl>`.");
+  return Schema.parse(JSON.parse(readFileSync(configPath(), "utf8")));
 }
 
 export function writeConfig(cfg: Config): void {
-  mkdirSync(CONFIG_DIR, { recursive: true });
-  writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2) + "\n");
+  mkdirSync(configDir(), { recursive: true });
+  writeFileSync(configPath(), JSON.stringify(cfg, null, 2) + "\n");
 }

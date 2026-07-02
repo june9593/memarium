@@ -25,11 +25,11 @@ export interface WizardAnswers {
 
 /**
  * Returns the path the wizard will use when the user skips the path question.
- * Fixed at `~/.vibebook/session-repo` so the /vibebook skill can detect
+ * Fixed at `~/.memarium/session-repo` so the /memarium skill can detect
  * "global mode" by cwd-equality without per-user configuration.
  */
 export function defaultLocalPath(): string {
-  return join(homedir(), ".vibebook", "session-repo");
+  return join(homedir(), ".memarium", "session-repo");
 }
 
 /**
@@ -38,7 +38,7 @@ export function defaultLocalPath(): string {
  * recover from (caller catches and exits non-zero).
  */
 export async function runWizard(): Promise<WizardAnswers> {
-  console.log(chalk.bold("\nvibebook init wizard\n"));
+  console.log(chalk.bold("\nmemarium init wizard\n"));
 
   // Q0: sync to remote?
   const syncToRemote = await promptYesNo(
@@ -58,7 +58,7 @@ export async function runWizard(): Promise<WizardAnswers> {
 
     // Q2: local path
     const rawPath = await prompt(
-      chalk.cyan("Q2") + ` Where should the repo live locally? (recommend the default — the /vibebook skill detects "global mode" by this exact path)`,
+      chalk.cyan("Q2") + ` Where should the repo live locally? (recommend the default — the /memarium skill detects "global mode" by this exact path)`,
       localPath,
     );
     localPath = resolve(expandHome(rawPath));
@@ -98,7 +98,7 @@ export async function runWizard(): Promise<WizardAnswers> {
 
 /** Strip common macOS-volatile suffixes from a hostname-derived branch name.
  *  `Mac-mini-2.local` → `Mac-mini-2`; `MIS-EV2-BB1.surfacescenarios.org` →
- *  `MIS-EV2-BB1` (the FQDN suffix is irrelevant for vibebook's purposes; the
+ *  `MIS-EV2-BB1` (the FQDN suffix is irrelevant for memarium's purposes; the
  *  identifying part of a personal machine name is the bare hostname). */
 export function stripVolatileSuffixes(name: string): string {
   return name
@@ -120,8 +120,8 @@ export async function applyWizardAnswers(a: WizardAnswers): Promise<void> {
     try {
       mat = await materializeRepoAtPath(a.localPath, a.repoUrl);
     } catch (err) {
-      // Plugin-first scenario: the user installed vibebook-plugin before
-      // the npm CLI, so ~/.vibebook/session-repo/ is non-empty (book/,
+      // Plugin-first scenario: the user installed memarium-plugin before
+      // the npm CLI, so ~/.memarium/session-repo/ is non-empty (book/,
       // raw_sessions/) but not a git repo. Offer to adopt it in place
       // rather than asking the user to `rm -rf` their plugin data.
       const msg = (err as Error).message;
@@ -129,7 +129,7 @@ export async function applyWizardAnswers(a: WizardAnswers): Promise<void> {
         const adopt = await promptYesNo(
           chalk.yellow(
             `\n  ${a.localPath} has data in it but isn't a git repo (looks like\n` +
-            `  vibebook-plugin wrote it before the npm CLI was installed).\n` +
+            `  memarium-plugin wrote it before the npm CLI was installed).\n` +
             `  Adopt this directory: 'git init' + add origin '${a.repoUrl}' + create\n` +
             `  branch '${a.deviceBranch}' with your existing files as its first commit?\n` +
             `  (Nothing on disk is deleted or moved.)`,
@@ -188,25 +188,25 @@ export async function applyWizardAnswers(a: WizardAnswers): Promise<void> {
   };
   writeConfig(cfg);
 
-  console.log(chalk.green("\n✓ vibebook configured."));
-  console.log(chalk.gray(`  Config: ~/.vibebook/config.json`));
+  console.log(chalk.green("\n✓ memarium configured."));
+  console.log(chalk.gray(`  Config: ~/.memarium/config.json`));
   if (!a.repoUrl) {
-    console.log(chalk.cyan(`  local-only mode: sessions stay on this machine. To enable sync later, edit ~/.vibebook/config.json and set "repoUrl".`));
+    console.log(chalk.cyan(`  local-only mode: sessions stay on this machine. To enable sync later, edit ~/.memarium/config.json and set "repoUrl".`));
     return;
   }
 
   console.log("");
   console.log(chalk.cyan("Try on this machine:"));
-  console.log("  vibebook sync                    # extract local sessions + push to your device branch");
+  console.log("  memarium sync                    # extract local sessions + push to your device branch");
   console.log("");
-  console.log(chalk.cyan("On ANOTHER machine after vibebook init + vibebook sync:"));
-  console.log("  vibebook list-sessions --since 7d        # see what's synced from elsewhere");
-  console.log("  cd <project-dir> && vibebook resume <id> # spawn claude with that prior session's context");
+  console.log(chalk.cyan("On ANOTHER machine after memarium init + memarium sync:"));
+  console.log("  memarium list-sessions --since 7d        # see what's synced from elsewhere");
+  console.log("  cd <project-dir> && memarium resume <id> # spawn claude with that prior session's context");
   console.log("");
   console.log(chalk.cyan("For digest + recall (chronicles, topics, bookmark recall):"));
   console.log(chalk.gray("  Install the Claude Code plugin:"));
-  console.log("    /plugin marketplace add june9593/vibebook-plugin");
-  console.log("    /plugin install vibebook");
+  console.log("    /plugin marketplace add june9593/memarium-plugin");
+  console.log("    /plugin install memarium");
   if (a.enableAggregateCI) {
     console.log("");
     console.log(chalk.cyan("Installing CI aggregation workflow on origin/main..."));
@@ -215,7 +215,7 @@ export async function applyWizardAnswers(a: WizardAnswers): Promise<void> {
       await workflowInitCmd({});
     } catch (err) {
       console.log(chalk.yellow(`! workflow auto-install failed: ${(err as Error).message}`));
-      console.log(chalk.gray(`  You can retry later with: vibebook workflow init`));
+      console.log(chalk.gray(`  You can retry later with: memarium workflow init`));
     }
   }
 }
@@ -224,7 +224,7 @@ export async function applyWizardAnswers(a: WizardAnswers): Promise<void> {
 export async function runInitWizard(): Promise<void> {
   if (configExists()) {
     const overwrite = await promptYesNo(
-      chalk.yellow("vibebook already initialized at ~/.vibebook/config.json. Overwrite?"),
+      chalk.yellow("memarium already initialized at ~/.memarium/config.json. Overwrite?"),
       false,
     );
     if (!overwrite) {

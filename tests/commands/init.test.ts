@@ -8,7 +8,7 @@ describe("initCmd flag mode", () => {
   let originUrl: string;
 
   beforeEach(async () => {
-    tmpHome = mkdtempSync(join(tmpdir(), "vibebook-init-"));
+    tmpHome = mkdtempSync(join(tmpdir(), "memarium-init-"));
     vi.stubEnv("HOME", tmpHome);
     vi.resetModules();
     const { simpleGit } = await import("simple-git");
@@ -42,21 +42,21 @@ describe("initCmd flag mode", () => {
       localPath,
       digestEnabled: false,
     });
-    const cfg = JSON.parse(readFileSync(join(tmpHome, ".vibebook", "config.json"), "utf8"));
+    const cfg = JSON.parse(readFileSync(join(tmpHome, ".memarium", "config.json"), "utf8"));
     expect(cfg.digestEnabled).toBe(false);
     expect(cfg.repoPath).toBe(localPath);
   });
 
-  it("flag mode default localPath is ./.vibebook/repo under cwd", async () => {
-    const cwd = realpathSync(mkdtempSync(join(tmpdir(), "vibebook-cwd-")));
+  it("flag mode default localPath is ./.memarium/repo under cwd", async () => {
+    const cwd = realpathSync(mkdtempSync(join(tmpdir(), "memarium-cwd-")));
     const orig = process.cwd();
     process.chdir(cwd);
     try {
       const { initCmd } = await import("../../src/commands/init.js");
       await initCmd({ repoUrl: originUrl });
-      const cfg = JSON.parse(readFileSync(join(tmpHome, ".vibebook", "config.json"), "utf8"));
-      expect(cfg.repoPath).toBe(join(cwd, ".vibebook", "repo"));
-      expect(existsSync(join(cwd, ".vibebook", "repo", ".git"))).toBe(true);
+      const cfg = JSON.parse(readFileSync(join(tmpHome, ".memarium", "config.json"), "utf8"));
+      expect(cfg.repoPath).toBe(join(cwd, ".memarium", "repo"));
+      expect(existsSync(join(cwd, ".memarium", "repo", ".git"))).toBe(true);
     } finally {
       process.chdir(orig);
       rmSync(cwd, { recursive: true, force: true });

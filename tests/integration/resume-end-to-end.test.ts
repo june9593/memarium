@@ -11,11 +11,11 @@ describe("resume end-to-end (0.6)", () => {
     vi.resetModules();
     fakeHome = mkdtempSync(join(tmpdir(), "vb-e2e-"));
     vi.stubEnv("HOME", fakeHome);
-    repoPath = join(fakeHome, ".vibebook/session-repo");
-    mkdirSync(join(repoPath, ".vibebook"), { recursive: true });
-    mkdirSync(join(fakeHome, ".vibebook"), { recursive: true });
+    repoPath = join(fakeHome, ".memarium/session-repo");
+    mkdirSync(join(repoPath, ".memarium"), { recursive: true });
+    mkdirSync(join(fakeHome, ".memarium"), { recursive: true });
     writeFileSync(
-      join(fakeHome, ".vibebook/config.json"),
+      join(fakeHome, ".memarium/config.json"),
       JSON.stringify({
         repoPath,
         repoUrl: "",
@@ -65,7 +65,7 @@ describe("resume end-to-end (0.6)", () => {
       md,
     );
     writeFileSync(
-      join(repoPath, ".vibebook/index.json"),
+      join(repoPath, ".memarium/index.json"),
       JSON.stringify({
         version: 1,
         entries: {

@@ -1,9 +1,9 @@
 {
-  "name": "vibebook-marketing-site",
+  "name": "memarium-marketing-site",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Single-page project landing for vibebook (june9593.github.io/vibebook). Built with Astro; reuses the Anthropic warm-tone palette from the vibebook book site template.",
+  "description": "Single-page project landing for memarium (june9593.github.io/memarium). Built with Astro; reuses the Anthropic warm-tone palette from the memarium book site template.",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",

@@ -13,11 +13,11 @@ beforeEach(() => {
   vi.stubEnv("HOME", tmpHome);
   homeBackup = process.env.HOME!;
   repo = mkdtempSync(join(tmpdir(), "vbk-prune-repo-"));
-  mkdirSync(join(repo, ".vibebook"), { recursive: true });
+  mkdirSync(join(repo, ".memarium"), { recursive: true });
   // Minimal config so readConfig works
-  mkdirSync(join(tmpHome, ".vibebook"), { recursive: true });
+  mkdirSync(join(tmpHome, ".memarium"), { recursive: true });
   writeFileSync(
-    join(tmpHome, ".vibebook", "config.json"),
+    join(tmpHome, ".memarium", "config.json"),
     JSON.stringify({
       repoPath: repo, repoUrl: "",
       deviceBranch: "test", runner: "claude-cli",
@@ -51,7 +51,7 @@ function plantIndex(entries: { relativePath: string; sessionId: string }[]) {
       },
     ])),
   };
-  writeFileSync(join(repo, ".vibebook/index.json"), JSON.stringify(idx));
+  writeFileSync(join(repo, ".memarium/index.json"), JSON.stringify(idx));
 }
 
 describe("pruneCmd", () => {

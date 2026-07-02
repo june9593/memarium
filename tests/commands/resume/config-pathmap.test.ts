@@ -10,11 +10,11 @@ describe("setMapPath", () => {
     vi.resetModules();
     fakeHome = mkdtempSync(join(tmpdir(), "vb-cfg-"));
     vi.stubEnv("HOME", fakeHome);
-    mkdirSync(join(fakeHome, ".vibebook"), { recursive: true });
+    mkdirSync(join(fakeHome, ".memarium"), { recursive: true });
     writeFileSync(
-      join(fakeHome, ".vibebook/config.json"),
+      join(fakeHome, ".memarium/config.json"),
       JSON.stringify({
-        repoPath: join(fakeHome, ".vibebook/session-repo"),
+        repoPath: join(fakeHome, ".memarium/session-repo"),
         repoUrl: "",
         deviceBranch: "test", runner: "claude-cli",
         enableAggregateCI: false, includeReasoning: true,
@@ -31,7 +31,7 @@ describe("setMapPath", () => {
   it("adds a single mapping when pathMap is empty", async () => {
     const { setMapPath } = await import("../../../src/commands/resume/config-pathmap.js");
     setMapPath("/Users/yueA=/Users/yueB");
-    const cfg = JSON.parse(readFileSync(join(fakeHome, ".vibebook/config.json"), "utf8"));
+    const cfg = JSON.parse(readFileSync(join(fakeHome, ".memarium/config.json"), "utf8"));
     expect(cfg.pathMap).toEqual({ "/Users/yueA": "/Users/yueB" });
   });
 
@@ -39,7 +39,7 @@ describe("setMapPath", () => {
     const { setMapPath } = await import("../../../src/commands/resume/config-pathmap.js");
     setMapPath("/Users/yueA=/Users/yueB");
     setMapPath("/Users/yueC=/Users/yueB");
-    const cfg = JSON.parse(readFileSync(join(fakeHome, ".vibebook/config.json"), "utf8"));
+    const cfg = JSON.parse(readFileSync(join(fakeHome, ".memarium/config.json"), "utf8"));
     expect(cfg.pathMap).toEqual({
       "/Users/yueA": "/Users/yueB",
       "/Users/yueC": "/Users/yueB",
@@ -50,7 +50,7 @@ describe("setMapPath", () => {
     const { setMapPath } = await import("../../../src/commands/resume/config-pathmap.js");
     setMapPath("/Users/yueA=/Users/yueB");
     setMapPath("/Users/yueA=/Users/yueC");
-    const cfg = JSON.parse(readFileSync(join(fakeHome, ".vibebook/config.json"), "utf8"));
+    const cfg = JSON.parse(readFileSync(join(fakeHome, ".memarium/config.json"), "utf8"));
     expect(cfg.pathMap).toEqual({ "/Users/yueA": "/Users/yueC" });
   });
 
@@ -73,11 +73,11 @@ describe("setDeviceBranch", () => {
     vi.resetModules();
     fakeHome = mkdtempSync(join(tmpdir(), "vb-cfg-"));
     vi.stubEnv("HOME", fakeHome);
-    mkdirSync(join(fakeHome, ".vibebook"), { recursive: true });
+    mkdirSync(join(fakeHome, ".memarium"), { recursive: true });
     writeFileSync(
-      join(fakeHome, ".vibebook/config.json"),
+      join(fakeHome, ".memarium/config.json"),
       JSON.stringify({
-        repoPath: join(fakeHome, ".vibebook/session-repo"),
+        repoPath: join(fakeHome, ".memarium/session-repo"),
         repoUrl: "",
         deviceBranch: "Mac-mini-2.local", runner: "claude-cli",
         enableAggregateCI: false, includeReasoning: true,
@@ -96,7 +96,7 @@ describe("setDeviceBranch", () => {
     const { previous, current } = setDeviceBranch("mini2");
     expect(previous).toBe("Mac-mini-2.local");
     expect(current).toBe("mini2");
-    const cfg = JSON.parse(readFileSync(join(fakeHome, ".vibebook/config.json"), "utf8"));
+    const cfg = JSON.parse(readFileSync(join(fakeHome, ".memarium/config.json"), "utf8"));
     expect(cfg.deviceBranch).toBe("mini2");
   });
 

@@ -13,23 +13,23 @@ export interface SessionSignals {
 }
 
 /**
- * Detect a "vibebook meta-session" — the user invoking the /vibebook skill
+ * Detect a "memarium meta-session" — the user invoking the /memarium skill
  * itself, which produces a session whose entire content is the digest
- * pipeline (vibebook prepare/publish/etc.) rather than real engineering
+ * pipeline (memarium prepare/publish/etc.) rather than real engineering
  * work. These have zero chronicle value (they're self-referential noise)
  * so prepare filters them out before the LLM ever sees them.
  *
  * Signals (any one is enough):
- *   - first user message starts with "/vibebook"
- *   - first user message starts with "/loop /vibebook" (looped invocations)
+ *   - first user message starts with "/memarium"
+ *   - first user message starts with "/loop /memarium" (looped invocations)
  *   - first user message references the SKILL.md by path
  */
-export function isVibebookMetaSession(mdBody: string): boolean {
+export function isMemariumMetaSession(mdBody: string): boolean {
   const userTexts = extractUserTexts(mdBody);
   const first = (userTexts[0] ?? "").trimStart();
-  if (/^\/vibebook(\b|$)/i.test(first)) return true;
-  if (/^\/loop\s+\/vibebook(\b|$)/i.test(first)) return true;
-  if (first.includes("skills/vibebook/SKILL.md")) return true;
+  if (/^\/memarium(\b|$)/i.test(first)) return true;
+  if (/^\/loop\s+\/memarium(\b|$)/i.test(first)) return true;
+  if (first.includes("skills/memarium/SKILL.md")) return true;
   return false;
 }
 

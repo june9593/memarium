@@ -6,22 +6,22 @@ import type { IndexFile, IndexEntry } from "./types.js";
 
 /** Per-clone read-only mirror of `origin/main` mounted as a separate git
  *  worktree. Holds the union of every device's raw_sessions/ plus
- *  `.vibebook/index.aggregated.json` (written by CI's merge-books.mjs).
+ *  `.memarium/index.aggregated.json` (written by CI's merge-books.mjs).
  *
- *  P7 (0.8.0): without this, `vibebook resume <id>` could only find sessions
+ *  P7 (0.8.0): without this, `memarium resume <id>` could only find sessions
  *  recorded by THIS device — sessions captured on a sibling device were
  *  unreachable until you manually checked out the other device branch.
  *
- *  Layout: `<HOME>/.vibebook/aggregated/` — sibling to `session-repo/`.
+ *  Layout: `<HOME>/.memarium/aggregated/` — sibling to `session-repo/`.
  *  Both worktrees share the same `.git` database. */
 export function aggregatedPath(): string {
-  return join(homedir(), ".vibebook", "aggregated");
+  return join(homedir(), ".memarium", "aggregated");
 }
 
 /** Path inside aggregated worktree where merge-books.mjs writes the union
  *  index. Absent when CI hasn't run yet or no device had spool data. */
 export function aggregatedIndexAbs(): string {
-  return join(aggregatedPath(), ".vibebook", "index.aggregated.json");
+  return join(aggregatedPath(), ".memarium", "index.aggregated.json");
 }
 
 /**

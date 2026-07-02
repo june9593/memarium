@@ -1,15 +1,15 @@
-name: vibebook · publish site to GitHub Pages
+name: memarium · publish site to GitHub Pages
 
-# Build the static vibebook site and publish it to GitHub Pages on every
+# Build the static memarium site and publish it to GitHub Pages on every
 # push to main. The site is generated from the BookIndex + book/ markdown
-# in this repo — exactly what `vibebook build-site` does locally.
+# in this repo — exactly what `memarium build-site` does locally.
 #
 # Setup steps for a fresh repo:
 #   1. Settings → Pages → Source: GitHub Actions
 #   2. Push this workflow to main; the first run produces the site.
 #
-# The workflow fetches vibebook from npm (latest @0.x). If you've forked
-# vibebook itself or want to pin a version, edit the `npm install` line
+# The workflow fetches memarium from npm (latest @0.x). If you've forked
+# memarium itself or want to pin a version, edit the `npm install` line
 # below.
 
 on:
@@ -38,13 +38,13 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install vibebook (latest 0.x)
-        run: npm install -g vibebook@^0.2
+      - name: Install memarium (latest 0.x)
+        run: npm install -g memarium@^0.2
 
-      - name: Write minimal vibebook config (CI mode, no remote)
+      - name: Write minimal memarium config (CI mode, no remote)
         run: |
-          mkdir -p ~/.vibebook
-          cat > ~/.vibebook/config.json <<EOF
+          mkdir -p ~/.memarium
+          cat > ~/.memarium/config.json <<EOF
           {
             "repoPath": "${GITHUB_WORKSPACE}",
             "repoUrl": "",
@@ -62,12 +62,12 @@ jobs:
         env:
           # GitHub Pages serves project sites at /<repo>/. We pass that as
           # the base URL so all internal links resolve correctly.
-          VIBEBOOK_PAGES_BASE: /${{ github.event.repository.name }}/
-          VIBEBOOK_PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          MEMARIUM_PAGES_BASE: /${{ github.event.repository.name }}/
+          MEMARIUM_PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
         run: |
-          vibebook build-site \
-            --base "${VIBEBOOK_PAGES_BASE}" \
-            --site-url "${VIBEBOOK_PAGES_URL}"
+          memarium build-site \
+            --base "${MEMARIUM_PAGES_BASE}" \
+            --site-url "${MEMARIUM_PAGES_URL}"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

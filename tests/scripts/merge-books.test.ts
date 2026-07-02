@@ -9,7 +9,7 @@ import { simpleGit } from "simple-git";
  * Integration test for assets/scripts/merge-books.mjs.
  *
  * Sets up a fake bare remote with two device branches, each carrying a v2
- * BookIndex (.vibebook/index.book.json) + book/<proj>/chronicle/ +
+ * BookIndex (.memarium/index.book.json) + book/<proj>/chronicle/ +
  * book/<proj>/topics/ + book/<proj>/cards/. Runs merge-books.mjs on a
  * clone of main and asserts:
  *   - chronicles deduped by threadId (latest updatedAt wins) + file copied
@@ -43,7 +43,7 @@ interface CardSeed {
 }
 
 interface RawSessionSeed {
-  /** e.g. "claude:abc12345-..." — the key in .vibebook/index.json */
+  /** e.g. "claude:abc12345-..." — the key in .memarium/index.json */
   sessionId: string;
   tool: "claude" | "copilot";
   project: string;
@@ -98,13 +98,13 @@ interface BranchSeed {
   topics?: Record<string, TopicSeed[]>;
   /** project → cards[] (project may be "_global") */
   cards?: Record<string, CardSeed[]>;
-  /** raw_sessions to plant + register in .vibebook/index.json (P7) */
+  /** raw_sessions to plant + register in .memarium/index.json (P7) */
   rawSessions?: RawSessionSeed[];
-  /** typed memory entries to plant + register in .vibebook/index.memory.json (0.9) */
+  /** typed memory entries to plant + register in .memarium/index.memory.json (0.9) */
   memories?: MemorySeed[];
-  /** entity wiki pages to plant + register in .vibebook/index.entity.json */
+  /** entity wiki pages to plant + register in .memarium/index.entity.json */
   entities?: EntitySeed[];
-  /** qa pages to plant + register in .vibebook/index.qa.json */
+  /** qa pages to plant + register in .memarium/index.qa.json */
   qa?: QaSeed[];
 }
 
@@ -122,7 +122,7 @@ function chroniclePath(project: string, c: ChronicleSeed): string {
 }
 
 async function setupBranch(seed: BranchSeed): Promise<void> {
-  const dir = mkdtempSync(join(tmpdir(), `vibebook-merge-seed-${seed.device}-`));
+  const dir = mkdtempSync(join(tmpdir(), `memarium-merge-seed-${seed.device}-`));
   await simpleGit().clone(bareRemote, dir);
   const g = simpleGit(dir);
   await g.addConfig("user.email", "t@example.com");
@@ -188,10 +188,10 @@ async function setupBranch(seed: BranchSeed): Promise<void> {
     }
   }
 
-  mkdirSync(join(dir, ".vibebook"), { recursive: true });
-  writeFileSync(join(dir, ".vibebook", "index.book.json"), JSON.stringify(bookIndex, null, 2));
+  mkdirSync(join(dir, ".memarium"), { recursive: true });
+  writeFileSync(join(dir, ".memarium", "index.book.json"), JSON.stringify(bookIndex, null, 2));
 
-  // P7: raw_sessions + .vibebook/index.json (spool index, separate from
+  // P7: raw_sessions + .memarium/index.json (spool index, separate from
   // index.book.json which only carries the digested book artifacts).
   if (seed.rawSessions && seed.rawSessions.length > 0) {
     const spoolIndex = {
@@ -219,10 +219,10 @@ async function setupBranch(seed: BranchSeed): Promise<void> {
         sourceSha256: `sha-${rs.sessionId}`,
       };
     }
-    writeFileSync(join(dir, ".vibebook", "index.json"), JSON.stringify(spoolIndex, null, 2));
+    writeFileSync(join(dir, ".memarium", "index.json"), JSON.stringify(spoolIndex, null, 2));
   }
 
-  // memories: plant .md files + .vibebook/index.memory.json (0.9)
+  // memories: plant .md files + .memarium/index.memory.json (0.9)
   if (seed.memories && seed.memories.length > 0) {
     const entries: Record<string, unknown> = {};
     for (const m of seed.memories) {
@@ -244,10 +244,10 @@ async function setupBranch(seed: BranchSeed): Promise<void> {
         originDevice: null,
       };
     }
-    writeFileSync(join(dir, ".vibebook", "index.memory.json"), JSON.stringify({ version: 1, entries }, null, 2));
+    writeFileSync(join(dir, ".memarium", "index.memory.json"), JSON.stringify({ version: 1, entries }, null, 2));
   }
 
-  // entities: plant .md files + .vibebook/index.entity.json
+  // entities: plant .md files + .memarium/index.entity.json
   if (seed.entities && seed.entities.length > 0) {
     const entityEntries: Record<string, unknown> = {};
     for (const e of seed.entities) {
@@ -265,10 +265,10 @@ async function setupBranch(seed: BranchSeed): Promise<void> {
         originDevice: null,
       };
     }
-    writeFileSync(join(dir, ".vibebook", "index.entity.json"), JSON.stringify({ version: 1, entries: entityEntries }, null, 2));
+    writeFileSync(join(dir, ".memarium", "index.entity.json"), JSON.stringify({ version: 1, entries: entityEntries }, null, 2));
   }
 
-  // qa: plant .md files + .vibebook/index.qa.json
+  // qa: plant .md files + .memarium/index.qa.json
   if (seed.qa && seed.qa.length > 0) {
     const qaEntries: Record<string, unknown> = {};
     for (const e of seed.qa) {
@@ -287,7 +287,7 @@ async function setupBranch(seed: BranchSeed): Promise<void> {
         originDevice: null,
       };
     }
-    writeFileSync(join(dir, ".vibebook", "index.qa.json"), JSON.stringify({ version: 1, entries: qaEntries }, null, 2));
+    writeFileSync(join(dir, ".memarium", "index.qa.json"), JSON.stringify({ version: 1, entries: qaEntries }, null, 2));
   }
 
   await g.add(".");
@@ -303,7 +303,7 @@ function writeFileTo(dir: string, rel: string, body: string) {
 }
 
 async function setupMainOrphan(): Promise<void> {
-  const dir = mkdtempSync(join(tmpdir(), "vibebook-merge-main-seed-"));
+  const dir = mkdtempSync(join(tmpdir(), "memarium-merge-main-seed-"));
   await simpleGit().clone(bareRemote, dir);
   const g = simpleGit(dir);
   await g.addConfig("user.email", "t@example.com");
@@ -318,10 +318,10 @@ async function setupMainOrphan(): Promise<void> {
 }
 
 beforeEach(async () => {
-  bareRemote = mkdtempSync(join(tmpdir(), "vibebook-merge-bare-"));
+  bareRemote = mkdtempSync(join(tmpdir(), "memarium-merge-bare-"));
   await simpleGit(bareRemote).init({ "--bare": null });
   await setupMainOrphan();
-  workspace = mkdtempSync(join(tmpdir(), "vibebook-merge-work-"));
+  workspace = mkdtempSync(join(tmpdir(), "memarium-merge-work-"));
 }, T);
 
 afterEach(() => {
@@ -333,7 +333,7 @@ async function runMerge(env: NodeJS.ProcessEnv = {}): Promise<{ clone: string }>
   await simpleGit().clone(bareRemote, workspace);
   const g = simpleGit(workspace);
   await g.addConfig("user.email", "bot@example.com");
-  await g.addConfig("user.name", "vibebook-bot");
+  await g.addConfig("user.name", "memarium-bot");
   await g.checkout("main");
   execSync(`node ${SCRIPT_PATH}`, { cwd: workspace, stdio: "pipe", env: { ...process.env, ...env } });
   return { clone: workspace };
@@ -508,7 +508,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(timeline.indexOf("Trace memory leak")).toBeLessThan(timeline.indexOf("Fix foo"));
   }, T);
 
-  it("renders Chinese strings when VIBEBOOK_LOCALE=zh", async () => {
+  it("renders Chinese strings when MEMARIUM_LOCALE=zh", async () => {
     await setupBranch({
       device: "Mac.lan",
       chronicles: { "edge-src": [{
@@ -517,7 +517,7 @@ describe("merge-books.mjs (v2 schema)", () => {
       }] },
     });
 
-    await runMerge({ VIBEBOOK_LOCALE: "zh" });
+    await runMerge({ MEMARIUM_LOCALE: "zh" });
 
     const front = readFileSync(join(workspace, "book/index.md"), "utf8");
     expect(front).toContain("聚合自 1 台设备");
@@ -528,8 +528,8 @@ describe("merge-books.mjs (v2 schema)", () => {
   }, T);
 
   it("skips branches without a v2 BookIndex and exits cleanly when none have one", async () => {
-    // Branch with no .vibebook/index.book.json
-    const dir = mkdtempSync(join(tmpdir(), "vibebook-merge-noindex-"));
+    // Branch with no .memarium/index.book.json
+    const dir = mkdtempSync(join(tmpdir(), "memarium-merge-noindex-"));
     await simpleGit().clone(bareRemote, dir);
     const g = simpleGit(dir);
     await g.addConfig("user.email", "t@t");
@@ -537,7 +537,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     await g.checkout(["-b", "empty-device"]);
     writeFileSync(join(dir, "random.txt"), "hi");
     await g.add(".");
-    await g.commit("no vibebook data");
+    await g.commit("no memarium data");
     await g.push("origin", "empty-device", ["-u"]);
     rmSync(dir, { recursive: true, force: true });
 
@@ -556,20 +556,20 @@ describe("merge-books.mjs (v2 schema)", () => {
     const { clone } = await runMerge();
     const g = simpleGit(clone);
     const log = await g.log();
-    expect(log.all[0].message).toMatch(/vibebook aggregate/);
+    expect(log.all[0].message).toMatch(/memarium aggregate/);
     expect(log.all[0].message).toMatch(/chronicles?/);
   }, T);
 
   it("v1 BookIndex on a device branch is silently skipped (no migration)", async () => {
-    // simulate an old-vibebook device that hasn't run v0.2 yet
-    const dir = mkdtempSync(join(tmpdir(), "vibebook-merge-v1-"));
+    // simulate an old-memarium device that hasn't run v0.2 yet
+    const dir = mkdtempSync(join(tmpdir(), "memarium-merge-v1-"));
     await simpleGit().clone(bareRemote, dir);
     const g = simpleGit(dir);
     await g.addConfig("user.email", "t@t");
     await g.addConfig("user.name", "t");
     await g.checkout(["-b", "old-device"]);
-    mkdirSync(join(dir, ".vibebook"), { recursive: true });
-    writeFileSync(join(dir, ".vibebook", "index.book.json"), JSON.stringify({
+    mkdirSync(join(dir, ".memarium"), { recursive: true });
+    writeFileSync(join(dir, ".memarium", "index.book.json"), JSON.stringify({
       version: 1, threads: { "x": { threadId: "x", project: "p", title: "X",
         sessionIds: [], articlePath: "book/p/articles/x.md",
         articleVersion: 2, latestSourceSha: "s", articleStatus: "ok",
@@ -586,7 +586,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(existsSync(join(workspace, "book/p/articles/x.md"))).toBe(false);
   }, T);
 
-  it("aggregates raw_sessions/ + writes .vibebook/index.aggregated.json (P7)", async () => {
+  it("aggregates raw_sessions/ + writes .memarium/index.aggregated.json (P7)", async () => {
     await setupBranch({
       device: "Mac.lan",
       rawSessions: [
@@ -629,7 +629,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     // dedupe by tool:sessionId — Mac-mini's newer body wins for sess-shared
     expect(readFileSync(sharedMd, "utf8")).toContain("NEW body from Mac-mini");
 
-    const aggPath = join(workspace, ".vibebook/index.aggregated.json");
+    const aggPath = join(workspace, ".memarium/index.aggregated.json");
     expect(existsSync(aggPath)).toBe(true);
     const agg = JSON.parse(readFileSync(aggPath, "utf8"));
     expect(agg.version).toBe(1);
@@ -644,7 +644,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(agg.entries["claude:sess-shared"].originDevice).toBe("Mac-mini");
   }, T);
 
-  it("doesn't write raw_sessions/ or .vibebook/index.aggregated.json when no device has a spool index", async () => {
+  it("doesn't write raw_sessions/ or .memarium/index.aggregated.json when no device has a spool index", async () => {
     // Existing chronicle-only seeds (no rawSessions) should still merge book/
     // cleanly, and the new aggregated files should NOT appear.
     await setupBranch({
@@ -654,13 +654,13 @@ describe("merge-books.mjs (v2 schema)", () => {
     });
     await runMerge();
     expect(existsSync(join(workspace, "raw_sessions"))).toBe(false);
-    expect(existsSync(join(workspace, ".vibebook/index.aggregated.json"))).toBe(false);
+    expect(existsSync(join(workspace, ".memarium/index.aggregated.json"))).toBe(false);
     // chronicle still aggregated normally
     expect(existsSync(join(workspace, "book/p/chronicle/2026-04-20__t1__t1.md"))).toBe(true);
   }, T);
 
   it("aggregates raw_sessions even when NO device has a v2 BookIndex (0.8.3 fix)", async () => {
-    // Devices have only raw_sessions (no /vibebook digest has been run
+    // Devices have only raw_sessions (no /memarium digest has been run
     // anywhere yet). Pre-0.8.3 the script early-returned on empty
     // perDevice and raw_sessions aggregation was silently skipped.
     await setupBranch({
@@ -668,7 +668,7 @@ describe("merge-books.mjs (v2 schema)", () => {
       rawSessions: [{
         sessionId: "sess-only-raw", tool: "claude", project: "edge-src",
         startedAt: "2026-04-20T10:00:00.000Z", sourceMtimeMs: 1_000_000,
-        body: "# md from a device that never ran /vibebook digest\n",
+        body: "# md from a device that never ran /memarium digest\n",
       }],
     });
 
@@ -676,7 +676,7 @@ describe("merge-books.mjs (v2 schema)", () => {
 
     // raw_sessions IS aggregated even without books
     expect(existsSync(join(workspace, "raw_sessions/claude/edge-src/2026-04-20/seed__sess-onl.md"))).toBe(true);
-    const agg = JSON.parse(readFileSync(join(workspace, ".vibebook/index.aggregated.json"), "utf8"));
+    const agg = JSON.parse(readFileSync(join(workspace, ".memarium/index.aggregated.json"), "utf8"));
     expect(Object.keys(agg.entries)).toEqual(["claude:sess-only-raw"]);
     // book/index.md may exist (the test helper plants an empty BookIndex
     // unconditionally) but no chronicle files were aggregated
@@ -710,7 +710,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(existsSync(join(workspace, "memory/core/_global/rule.md"))).toBe(true);
     expect(existsSync(join(workspace, "memory/procedural/edge-src/b.md"))).toBe(true);
 
-    const idx = JSON.parse(readFileSync(join(workspace, ".vibebook/index.memory.json"), "utf8"));
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
     expect(Object.keys(idx.entries).sort()).toEqual([
       "core/_global/rule", "procedural/edge-src/b", "semantic/edge-src/a",
     ]);
@@ -751,7 +751,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(existsSync(parentEvil)).toBe(false);
 
     // The aggregated index must not contain malicious ids
-    const idx = JSON.parse(readFileSync(join(workspace, ".vibebook/index.memory.json"), "utf8"));
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
     expect(Object.keys(idx.entries)).not.toContain("evil/traversal/id");
     expect(Object.keys(idx.entries)).not.toContain("evil/absolute/id");
     expect(Object.keys(idx.entries)).not.toContain("evil/github/id");
@@ -787,7 +787,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(existsSync(join(workspace, "memory/entities/edge-src/x.md"))).toBe(false);
 
     // And it must not appear in the aggregated memory index
-    const idx = JSON.parse(readFileSync(join(workspace, ".vibebook/index.memory.json"), "utf8"));
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
     expect(Object.keys(idx.entries)).not.toContain("entity/sneaky/id");
     expect(Object.keys(idx.entries)).toEqual(["semantic/edge-src/normalFact"]);
   }, T);
@@ -811,7 +811,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     await simpleGit().clone(bareRemote, workspace);
     const g = simpleGit(workspace);
     await g.addConfig("user.email", "bot@example.com");
-    await g.addConfig("user.name", "vibebook-bot");
+    await g.addConfig("user.name", "memarium-bot");
     await g.checkout("main");
 
     // Plant the orphan stale file that should be pruned
@@ -828,7 +828,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(existsSync(staleAbs)).toBe(false);
 
     // Aggregated index reflects current state (only x)
-    const idx = JSON.parse(readFileSync(join(workspace, ".vibebook/index.memory.json"), "utf8"));
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
     expect(Object.keys(idx.entries)).toEqual(["semantic/edge-src/x"]);
     expect(Object.keys(idx.entries)).not.toContain("semantic/edge-src/y");
   }, T);
@@ -866,7 +866,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(existsSync(join(workspace, "memory/entities/edge-src/WebContents.md"))).toBe(true);
 
     // index.entity.json written with all three entries
-    const idx = JSON.parse(readFileSync(join(workspace, ".vibebook/index.entity.json"), "utf8"));
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.entity.json"), "utf8"));
     expect(idx.version).toBe(1);
     expect(Object.keys(idx.entries).sort()).toEqual([
       "_global/Chromium", "edge-src/Tab", "edge-src/WebContents",
@@ -914,7 +914,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(existsSync(join(workspace, "memory/entities/_global/x.txt"))).toBe(false);
 
     // index.entity.json must contain only the safe entry
-    const idx = JSON.parse(readFileSync(join(workspace, ".vibebook/index.entity.json"), "utf8"));
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.entity.json"), "utf8"));
     expect(Object.keys(idx.entries)).toEqual(["edge-src/SafeEntity"]);
     expect(Object.keys(idx.entries)).not.toContain("evil/traversal");
     expect(Object.keys(idx.entries)).not.toContain("evil/absolute");
@@ -957,7 +957,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(readFileSync(entityMd, "utf8")).toContain("backslash path entity");
 
     // The written index.entity.json must store the normalized (forward-slash) path.
-    const idx = JSON.parse(readFileSync(join(workspace, ".vibebook/index.entity.json"), "utf8"));
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.entity.json"), "utf8"));
     expect(idx.entries["edge-src/x"].path).toBe("memory/entities/edge-src/x.md");
   }, T);
 
@@ -985,7 +985,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(existsSync(memMd)).toBe(true);
     expect(readFileSync(memMd, "utf8")).toContain("backslash path memory");
 
-    const idx = JSON.parse(readFileSync(join(workspace, ".vibebook/index.memory.json"), "utf8"));
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
     expect(idx.entries["semantic/edge-src/y"].path).toBe("memory/semantic/edge-src/y.md");
   }, T);
 
@@ -1010,7 +1010,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     await simpleGit().clone(bareRemote, workspace);
     const g = simpleGit(workspace);
     await g.addConfig("user.email", "bot@example.com");
-    await g.addConfig("user.name", "vibebook-bot");
+    await g.addConfig("user.name", "memarium-bot");
     await g.checkout("main");
 
     const staleEntityAbs = join(workspace, "memory/entities/edge-src/StaleEntity.md");
@@ -1040,14 +1040,14 @@ describe("merge-books.mjs (v2 schema)", () => {
         threadId: "t-no-entity", title: "No entity index",
         updatedAt: "2026-06-01T00:00:00.000Z", body: "# chronicle only\n",
       }] },
-      // No `entities` field → no .vibebook/index.entity.json on this device
+      // No `entities` field → no .memarium/index.entity.json on this device
     });
 
     // Clone main and pre-plant entity pages that must survive
     await simpleGit().clone(bareRemote, workspace);
     const g = simpleGit(workspace);
     await g.addConfig("user.email", "bot@example.com");
-    await g.addConfig("user.name", "vibebook-bot");
+    await g.addConfig("user.name", "memarium-bot");
     await g.checkout("main");
 
     const prePlantedA = join(workspace, "memory/entities/edge-src/Tab.md");
@@ -1067,7 +1067,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(readFileSync(prePlantedB, "utf8")).toContain("Chromium — pre-existing");
 
     // index.entity.json must NOT have been written (anyEntityIndexSeen is false)
-    expect(existsSync(join(workspace, ".vibebook/index.entity.json"))).toBe(false);
+    expect(existsSync(join(workspace, ".memarium/index.entity.json"))).toBe(false);
   }, T);
 
   it("memory prune is SKIPPED when no device has a memory index (no-index-no-prune)", async () => {
@@ -1080,14 +1080,14 @@ describe("merge-books.mjs (v2 schema)", () => {
         threadId: "t-no-memory", title: "No memory index",
         updatedAt: "2026-06-01T00:00:00.000Z", body: "# chronicle only\n",
       }] },
-      // No `memories` field → no .vibebook/index.memory.json on this device
+      // No `memories` field → no .memarium/index.memory.json on this device
     });
 
     // Clone main and pre-plant a memory md that must survive
     await simpleGit().clone(bareRemote, workspace);
     const g = simpleGit(workspace);
     await g.addConfig("user.email", "bot@example.com");
-    await g.addConfig("user.name", "vibebook-bot");
+    await g.addConfig("user.name", "memarium-bot");
     await g.checkout("main");
 
     const prePlanted = join(workspace, "memory/semantic/edge-src/oldFact.md");
@@ -1101,7 +1101,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(readFileSync(prePlanted, "utf8")).toContain("oldFact — pre-existing");
 
     // index.memory.json must NOT have been written (anyMemoryIndexSeen is false)
-    expect(existsSync(join(workspace, ".vibebook/index.memory.json"))).toBe(false);
+    expect(existsSync(join(workspace, ".memarium/index.memory.json"))).toBe(false);
   }, T);
 
   it("aggregates memory/qa/ + index.qa.json across devices, union by id, latest wins", async () => {
@@ -1128,7 +1128,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(buildMd).toContain("new full body");
     expect(existsSync(join(workspace, "memory/qa/edge-src/how-to-test-bbbb2222.md"))).toBe(true);
 
-    const idx = JSON.parse(readFileSync(join(workspace, ".vibebook/index.qa.json"), "utf8"));
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.qa.json"), "utf8"));
     expect(idx.version).toBe(1);
     expect(Object.keys(idx.entries).sort()).toEqual([
       "qa/edge-src/how-to-build-aaaa1111", "qa/edge-src/how-to-test-bbbb2222",
@@ -1149,7 +1149,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     await simpleGit().clone(bareRemote, workspace);
     const g = simpleGit(workspace);
     await g.addConfig("user.email", "bot@example.com");
-    await g.addConfig("user.name", "vibebook-bot");
+    await g.addConfig("user.name", "memarium-bot");
     await g.checkout("main");
 
     const prePlanted = join(workspace, "memory/qa/edge-src/pre-existing.md");
@@ -1160,7 +1160,7 @@ describe("merge-books.mjs (v2 schema)", () => {
 
     expect(existsSync(prePlanted)).toBe(true);
     expect(readFileSync(prePlanted, "utf8")).toContain("pre-existing");
-    expect(existsSync(join(workspace, ".vibebook/index.qa.json"))).toBe(false);
+    expect(existsSync(join(workspace, ".memarium/index.qa.json"))).toBe(false);
   }, T);
 
   it("skips qa entries with unsafe paths (path traversal guard)", async () => {
@@ -1198,7 +1198,7 @@ describe("merge-books.mjs (v2 schema)", () => {
     expect(existsSync(join(workspace, "memory/qa/_global/evil.txt"))).toBe(false);
 
     // index.qa.json must contain only the safe entry
-    const idx = JSON.parse(readFileSync(join(workspace, ".vibebook/index.qa.json"), "utf8"));
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.qa.json"), "utf8"));
     expect(Object.keys(idx.entries)).toEqual(["qa/edge-src/safe-aaaa1111"]);
     expect(Object.keys(idx.entries)).not.toContain("qa/evil/traversal");
     expect(Object.keys(idx.entries)).not.toContain("qa/evil/absolute");

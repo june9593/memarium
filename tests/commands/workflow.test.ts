@@ -8,14 +8,14 @@ describe("workflowInitCmd (local-only mode)", () => {
   let repoPath: string;
 
   beforeEach(() => {
-    tmpHome = mkdtempSync(join(tmpdir(), "vibebook-wf-"));
+    tmpHome = mkdtempSync(join(tmpdir(), "memarium-wf-"));
     vi.stubEnv("HOME", tmpHome);
     vi.resetModules();
     repoPath = join(tmpHome, "memvc-repo");
     mkdirSync(repoPath, { recursive: true });
-    mkdirSync(join(tmpHome, ".vibebook"), { recursive: true });
+    mkdirSync(join(tmpHome, ".memarium"), { recursive: true });
     // Local-only: no repoUrl. Skips the main-push path.
-    writeFileSync(join(tmpHome, ".vibebook", "config.json"), JSON.stringify({
+    writeFileSync(join(tmpHome, ".memarium", "config.json"), JSON.stringify({
       repoPath, repoUrl: "",
       deviceBranch: "test-device",
       runner: "claude-cli",
@@ -33,20 +33,20 @@ describe("workflowInitCmd (local-only mode)", () => {
   it("writes both files into the working tree when local-only", async () => {
     const { workflowInitCmd } = await import("../../src/commands/workflow.js");
     await workflowInitCmd({});
-    const yamlOut = join(repoPath, ".github", "workflows", "vibebook-aggregate.yml");
+    const yamlOut = join(repoPath, ".github", "workflows", "memarium-aggregate.yml");
     const scriptOut = join(repoPath, "scripts", "merge-books.mjs");
     expect(existsSync(yamlOut)).toBe(true);
     expect(existsSync(scriptOut)).toBe(true);
     const yaml = readFileSync(yamlOut, "utf8");
-    expect(yaml).toContain("vibebook aggregate book");
+    expect(yaml).toContain("memarium aggregate book");
     expect(yaml).toContain("merge-books.mjs");
-    expect(yaml).not.toContain("VIBEBOOK_PASSPHRASE");
+    expect(yaml).not.toContain("MEMARIUM_PASSPHRASE");
     const script = readFileSync(scriptOut, "utf8");
     expect(script).toContain("Aggregate every device branch");
   });
 
   it("refuses to overwrite without --force in local-only mode", async () => {
-    const yamlOut = join(repoPath, ".github", "workflows", "vibebook-aggregate.yml");
+    const yamlOut = join(repoPath, ".github", "workflows", "memarium-aggregate.yml");
     mkdirSync(join(repoPath, ".github", "workflows"), { recursive: true });
     writeFileSync(yamlOut, "existing content\n");
     const { workflowInitCmd } = await import("../../src/commands/workflow.js");
@@ -55,12 +55,12 @@ describe("workflowInitCmd (local-only mode)", () => {
   });
 
   it("overwrites with --force in local-only mode", async () => {
-    const yamlOut = join(repoPath, ".github", "workflows", "vibebook-aggregate.yml");
+    const yamlOut = join(repoPath, ".github", "workflows", "memarium-aggregate.yml");
     mkdirSync(join(repoPath, ".github", "workflows"), { recursive: true });
     writeFileSync(yamlOut, "existing\n");
     const { workflowInitCmd } = await import("../../src/commands/workflow.js");
     await workflowInitCmd({ force: true });
-    expect(readFileSync(yamlOut, "utf8")).toContain("vibebook aggregate book");
+    expect(readFileSync(yamlOut, "utf8")).toContain("memarium aggregate book");
   });
 });
 
@@ -70,13 +70,13 @@ describe("workflowInitCmd (remote mode → writes to main via temp worktree)", (
   let workRepo: string;
 
   beforeEach(async () => {
-    tmpHome = mkdtempSync(join(tmpdir(), "vibebook-wf-push-"));
+    tmpHome = mkdtempSync(join(tmpdir(), "memarium-wf-push-"));
     vi.stubEnv("HOME", tmpHome);
     vi.resetModules();
-    bareRemote = mkdtempSync(join(tmpdir(), "vibebook-wf-bare-"));
+    bareRemote = mkdtempSync(join(tmpdir(), "memarium-wf-bare-"));
     const { simpleGit } = await import("simple-git");
     await simpleGit(bareRemote).init({ "--bare": null });
-    workRepo = mkdtempSync(join(tmpdir(), "vibebook-wf-clone-"));
+    workRepo = mkdtempSync(join(tmpdir(), "memarium-wf-clone-"));
     const g = simpleGit(workRepo);
     await g.init();
     await g.addRemote("origin", bareRemote);
@@ -89,8 +89,8 @@ describe("workflowInitCmd (remote mode → writes to main via temp worktree)", (
     await g.add(".");
     await g.commit("seed");
     await g.push("origin", "test-device");
-    mkdirSync(join(tmpHome, ".vibebook"), { recursive: true });
-    writeFileSync(join(tmpHome, ".vibebook", "config.json"), JSON.stringify({
+    mkdirSync(join(tmpHome, ".memarium"), { recursive: true });
+    writeFileSync(join(tmpHome, ".memarium", "config.json"), JSON.stringify({
       repoPath: workRepo, repoUrl: bareRemote,
       deviceBranch: "test-device",
       runner: "claude-cli",
@@ -134,16 +134,16 @@ describe("workflowInitCmd (remote mode → writes to main via temp worktree)", (
     await expect(workflowInitCmd({})).resolves.not.toThrow();
 
     // Verify origin/main has the workflow + script
-    const verifyClone = mkdtempSync(join(tmpdir(), "vibebook-wf-mainconflict-"));
+    const verifyClone = mkdtempSync(join(tmpdir(), "memarium-wf-mainconflict-"));
     await simpleGit().clone(bareRemote, verifyClone);
     await simpleGit(verifyClone).checkout("main");
-    expect(existsSync(join(verifyClone, ".github", "workflows", "vibebook-aggregate.yml"))).toBe(true);
+    expect(existsSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"))).toBe(true);
     expect(existsSync(join(verifyClone, "scripts", "merge-books.mjs"))).toBe(true);
     rmSync(verifyClone, { recursive: true, force: true });
 
     // Verify no leftover temp branches in the primary repo
     const branches = await g.branch();
-    const tempBranches = branches.all.filter((b) => b.startsWith("vibebook-tmp-"));
+    const tempBranches = branches.all.filter((b) => b.startsWith("memarium-tmp-"));
     expect(tempBranches).toEqual([]);
   }, 30_000);
 
@@ -153,27 +153,27 @@ describe("workflowInitCmd (remote mode → writes to main via temp worktree)", (
 
     // Bare remote should now have a main ref with the workflow + script.
     const { simpleGit } = await import("simple-git");
-    const verifyClone = mkdtempSync(join(tmpdir(), "vibebook-wf-verify-"));
+    const verifyClone = mkdtempSync(join(tmpdir(), "memarium-wf-verify-"));
     await simpleGit().clone(bareRemote, verifyClone);
     const g = simpleGit(verifyClone);
     await g.checkout("main");
-    expect(existsSync(join(verifyClone, ".github", "workflows", "vibebook-aggregate.yml"))).toBe(true);
+    expect(existsSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"))).toBe(true);
     expect(existsSync(join(verifyClone, "scripts", "merge-books.mjs"))).toBe(true);
     // The yaml on main should have the locale placeholder substituted to "en"
     // (matches config's default bookLocale).
-    const yamlBody = readFileSync(join(verifyClone, ".github", "workflows", "vibebook-aggregate.yml"), "utf8");
-    expect(yamlBody).toContain('VIBEBOOK_LOCALE: "en"');
-    expect(yamlBody).not.toContain("__VIBEBOOK_LOCALE__");
+    const yamlBody = readFileSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"), "utf8");
+    expect(yamlBody).toContain('MEMARIUM_LOCALE: "en"');
+    expect(yamlBody).not.toContain("__MEMARIUM_LOCALE__");
     // Device branch test-device should NOT have these (clean separation)
     await g.checkout("test-device");
-    expect(existsSync(join(verifyClone, ".github", "workflows", "vibebook-aggregate.yml"))).toBe(false);
+    expect(existsSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"))).toBe(false);
     expect(existsSync(join(verifyClone, "scripts", "merge-books.mjs"))).toBe(false);
     rmSync(verifyClone, { recursive: true, force: true });
   }, 30_000);
 
   it("substitutes bookLocale=zh from config into the workflow yaml", async () => {
     // Override config's bookLocale to zh
-    const cfgPath = join(tmpHome, ".vibebook", "config.json");
+    const cfgPath = join(tmpHome, ".memarium", "config.json");
     const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
     cfg.bookLocale = "zh";
     writeFileSync(cfgPath, JSON.stringify(cfg));
@@ -182,11 +182,11 @@ describe("workflowInitCmd (remote mode → writes to main via temp worktree)", (
     await workflowInitCmd({});
 
     const { simpleGit } = await import("simple-git");
-    const verifyClone = mkdtempSync(join(tmpdir(), "vibebook-wf-zh-"));
+    const verifyClone = mkdtempSync(join(tmpdir(), "memarium-wf-zh-"));
     await simpleGit().clone(bareRemote, verifyClone);
     await simpleGit(verifyClone).checkout("main");
-    const yamlBody = readFileSync(join(verifyClone, ".github", "workflows", "vibebook-aggregate.yml"), "utf8");
-    expect(yamlBody).toContain('VIBEBOOK_LOCALE: "zh"');
+    const yamlBody = readFileSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"), "utf8");
+    expect(yamlBody).toContain('MEMARIUM_LOCALE: "zh"');
     rmSync(verifyClone, { recursive: true, force: true });
   }, 30_000);
 
@@ -201,7 +201,7 @@ describe("workflowInitCmd (remote mode → writes to main via temp worktree)", (
     const g = simpleGit(workRepo);
     const status = await g.status();
     expect(status.current).toBe("test-device");
-    expect(existsSync(join(workRepo, ".github", "workflows", "vibebook-aggregate.yml"))).toBe(false);
+    expect(existsSync(join(workRepo, ".github", "workflows", "memarium-aggregate.yml"))).toBe(false);
     expect(existsSync(join(workRepo, "scripts", "merge-books.mjs"))).toBe(false);
   }, 30_000);
 
@@ -211,7 +211,7 @@ describe("workflowInitCmd (remote mode → writes to main via temp worktree)", (
     await workflowInitCmd({});
 
     const { simpleGit } = await import("simple-git");
-    const verifyClone = mkdtempSync(join(tmpdir(), "vibebook-wf-verify2-"));
+    const verifyClone = mkdtempSync(join(tmpdir(), "memarium-wf-verify2-"));
     await simpleGit().clone(bareRemote, verifyClone);
     const g = simpleGit(verifyClone);
     await g.checkout("main");
@@ -231,6 +231,6 @@ describe("workflowInitCmd (remote mode → writes to main via temp worktree)", (
     const branches = await simpleGit(bareRemote).branch();
     expect(branches.all).not.toContain("main");
     // User's working tree untouched.
-    expect(existsSync(join(workRepo, ".github", "workflows", "vibebook-aggregate.yml"))).toBe(false);
+    expect(existsSync(join(workRepo, ".github", "workflows", "memarium-aggregate.yml"))).toBe(false);
   }, 30_000);
 });

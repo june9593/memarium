@@ -6,7 +6,7 @@ import { simpleGit } from "simple-git";
 import { fastForwardBranch } from "../src/git-ops.js";
 
 async function makeBareRemote(): Promise<string> {
-  const bare = mkdtempSync(join(tmpdir(), "vibebook-bare-"));
+  const bare = mkdtempSync(join(tmpdir(), "memarium-bare-"));
   await simpleGit(bare).init({ "--bare": null });
   return bare;
 }
@@ -17,7 +17,7 @@ async function makeBareRemote(): Promise<string> {
  * branch already exists on the remote, just clones+checks out.
  */
 async function makeOrCloneSeeded(remote: string, branch: string): Promise<string> {
-  const local = mkdtempSync(join(tmpdir(), "vibebook-clone-"));
+  const local = mkdtempSync(join(tmpdir(), "memarium-clone-"));
   await simpleGit().clone(remote, local);
   const g = simpleGit(local);
   await g.addConfig("user.email", "t@example.com");
@@ -51,7 +51,7 @@ describe("fastForwardBranch", () => {
   });
 
   it("returns no-tracking on a fresh branch with no upstream", async () => {
-    const local = mkdtempSync(join(tmpdir(), "vibebook-fresh-"));
+    const local = mkdtempSync(join(tmpdir(), "memarium-fresh-"));
     const g = simpleGit(local);
     await g.init();
     await g.addRemote("origin", remote);
@@ -82,7 +82,7 @@ describe("fastForwardBranch", () => {
 
   it("rebases local commit on top of remote commit (diverged)", async () => {
     const localA = await makeOrCloneSeeded(remote, "Mac.lan");
-    const localB = mkdtempSync(join(tmpdir(), "vibebook-cloneB-"));
+    const localB = mkdtempSync(join(tmpdir(), "memarium-cloneB-"));
     await simpleGit().clone(remote, localB);
     const gB = simpleGit(localB);
     await gB.addConfig("user.email", "t@example.com");
@@ -110,7 +110,7 @@ describe("fastForwardBranch", () => {
 
   it("throws on rebase conflict and leaves working tree clean", async () => {
     const localA = await makeOrCloneSeeded(remote, "Mac.lan");
-    const localB = mkdtempSync(join(tmpdir(), "vibebook-cloneC-"));
+    const localB = mkdtempSync(join(tmpdir(), "memarium-cloneC-"));
     await simpleGit().clone(remote, localB);
     const gB = simpleGit(localB);
     await gB.addConfig("user.email", "t@example.com");

@@ -1,8 +1,8 @@
 import { readConfig, writeConfig, type Config } from "../../config.js";
 import { sanitizeBranchName } from "../../device.js";
 
-/** Parse "FROM=TO" and add it to ~/.vibebook/config.json's pathMap. Throws
- *  on malformed input. Used by the `vibebook config --map-path` CLI flag.
+/** Parse "FROM=TO" and add it to ~/.memarium/config.json's pathMap. Throws
+ *  on malformed input. Used by the `memarium config --map-path` CLI flag.
  *
  *  The pathMap field is optional in the Config schema; if it doesn't exist
  *  yet, this initializes it.
@@ -22,7 +22,7 @@ export function setMapPath(spec: string): void {
   writeConfig({ ...cfg, pathMap: map });
 }
 
-/** Set ~/.vibebook/config.json's deviceBranch. Used by `vibebook config
+/** Set ~/.memarium/config.json's deviceBranch. Used by `memarium config
  *  --device <name>` so existing users can replace a drift-prone hostname
  *  (e.g. "Mac-mini-2.local") with a stable physical-label name (e.g. "mini2").
  *  Returns the previous and new branch names so the CLI can hint the user
