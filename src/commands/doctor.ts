@@ -21,7 +21,6 @@ import { aggregatedPath } from "../aggregated-store.js";
  *   4. `~/.memarium/config.json` exists, repoPath exists + is a git repo
  *   5. 0.5.x spool residue (.raw.json + .jsonl) — memarium 0.6 only writes .md
  *   5b. resume-forks.json residue from 0.5.1 fork-tracking
- *   6. memex on PATH (informational; not an error if missing)
  *
  * The check is read-only and offline-tolerant — `npm view` is the only
  * step that needs network and we surface the failure inline rather
@@ -254,21 +253,6 @@ export async function doctorCmd(): Promise<void> {
     }
   }
 
-  // 6. memex (informational)
-  const memexVersion = readMemexVersion();
-  if (memexVersion) {
-    checks.push({
-      name: "Memex (optional)", status: "ok",
-      detail: `${memexVersion} — /memarium recall folds memex cards in automatically`,
-    });
-  } else {
-    checks.push({
-      name: "Memex (optional)", status: "info",
-      detail: "not installed — atomic-card layer is unavailable",
-      fix: "npm install -g @touchskyer/memex   # only if you want atomic cards",
-    });
-  }
-
   // ---------- render ----------
   const symbol: Record<CheckResult["status"], string> = {
     ok: chalk.green("✓"),
@@ -389,14 +373,6 @@ function countResidue(repoPath: string): { rawJsonCount: number; jsonlCount: num
   };
   walk(root);
   return { rawJsonCount, jsonlCount };
-}
-
-function readMemexVersion(): string | null {
-  const r = spawnSync("memex", ["--version"], {
-    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 3000,
-  });
-  if (r.status !== 0) return null;
-  return r.stdout.trim() || null;
 }
 
 /** Resolve a git ref to a commit sha in `dir` (which shares .git with the
