@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.14.0 — 2026-07-03
+
+### `doctor`: drop the memex check
+
+memarium captures insights + recalls them natively now (plugin 0.14 — the
+`/memarium-retro` skill + a Stop-hook nudge, plus a recall nudge on
+SessionStart), so `doctor` no longer probes for the external `memex` CLI or
+suggests installing it. The `memex availability` health line and the
+`readMemexVersion()` helper are removed; `doctor`'s remaining checks (CLI
+version, npm latest, plugin manifest, config presence, cross-device overlay
+freshness) are unchanged. Paired with `memarium-plugin` 0.14.0, which drops
+memex from recall/digest/publish and adds the native proactive digest + recall.
+
 ## 0.13.1 — 2026-07-02
 
 **Fix: harden the `~/.vibebook` → `~/.memarium` config-dir migration.** Follow-up to 0.13.0's rename:

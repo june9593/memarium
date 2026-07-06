@@ -61,7 +61,7 @@ export async function run(argv: string[]) {
     });
   program
     .command("doctor")
-    .description("Health check: CLI version on PATH, npm latest, Claude plugin manifest + install entry, ~/.memarium/config presence, memex availability. Read-only and offline-tolerant.")
+    .description("Health check: CLI version on PATH, npm latest, Claude plugin manifest + install entry, ~/.memarium/config presence, cross-device overlay freshness. Read-only and offline-tolerant.")
     .action(async () => {
       const { doctorCmd } = await import("./commands/doctor.js");
       await doctorCmd();
