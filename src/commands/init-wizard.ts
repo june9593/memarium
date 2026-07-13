@@ -121,7 +121,7 @@ export async function applyWizardAnswers(a: WizardAnswers): Promise<void> {
       mat = await materializeRepoAtPath(a.localPath, a.repoUrl);
     } catch (err) {
       // Plugin-first scenario: the user installed memarium-plugin before
-      // the npm CLI, so ~/.memarium/session-repo/ is non-empty (book/,
+      // the npm CLI, so ~/.memarium/session-repo/ is non-empty (memory/,
       // raw_sessions/) but not a git repo. Offer to adopt it in place
       // rather than asking the user to `rm -rf` their plugin data.
       const msg = (err as Error).message;
@@ -182,9 +182,6 @@ export async function applyWizardAnswers(a: WizardAnswers): Promise<void> {
     // digestEnabled retained at schema default (true) for downstream
     // consumers; the wizard no longer prompts for it (v0.5).
     digestEnabled: true,
-    // bookLocale defaults to "en" via schema; we set it inline to satisfy
-    // the strict TypeScript Config type, which doesn't see through z.default().
-    bookLocale: "en",
   };
   writeConfig(cfg);
 
@@ -203,7 +200,7 @@ export async function applyWizardAnswers(a: WizardAnswers): Promise<void> {
   console.log("  memarium list-sessions --since 7d        # see what's synced from elsewhere");
   console.log("  cd <project-dir> && memarium resume <id> # spawn claude with that prior session's context");
   console.log("");
-  console.log(chalk.cyan("For digest + recall (chronicles, topics, bookmark recall):"));
+  console.log(chalk.cyan("For digest + recall (typed memory: episodes, facts, entities):"));
   console.log(chalk.gray("  Install the Claude Code plugin:"));
   console.log("    /plugin marketplace add june9593/memarium-plugin");
   console.log("    /plugin install memarium");

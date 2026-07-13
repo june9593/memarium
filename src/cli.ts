@@ -22,7 +22,7 @@ export async function run(argv: string[]) {
   const program = new Command();
   program
     .name("memarium")
-    .description("Vibe coding memory book")
+    .description("Cross-device memory for AI coding sessions")
     // Standard CLI convention: -v + --version. Commander defaults to -V
     // (uppercase) which most users don't reach for; we override to lowercase.
     .version(readPackageVersion(), "-v, --version", "print the installed memarium version");

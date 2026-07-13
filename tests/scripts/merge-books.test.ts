@@ -8,39 +8,14 @@ import { simpleGit } from "simple-git";
 /**
  * Integration test for assets/scripts/merge-books.mjs.
  *
- * Sets up a fake bare remote with two device branches, each carrying a v2
- * BookIndex (.memarium/index.book.json) + book/<proj>/chronicle/ +
- * book/<proj>/topics/ + book/<proj>/cards/. Runs merge-books.mjs on a
- * clone of main and asserts:
- *   - chronicles deduped by threadId (latest updatedAt wins) + file copied
- *   - topics preserved per-device as <slug>.<device>.md
- *   - cards unioned by (project, slug); collision → latest updatedAt
- *   - book/index.md + book/_meta/timeline.md regenerated with v2 vocabulary
- *   - commit created on main
+ * Sets up a fake bare remote with device branches, each carrying typed
+ * memory / entities / qa (via .memarium/index.{memory,entity,qa}.json) plus
+ * raw_sessions (via .memarium/index.json). Runs merge-books.mjs on a clone
+ * of main and asserts each pass unions by id/session (latest wins), prunes
+ * stale files, guards path traversal, and commits.
  */
 
 const SCRIPT_PATH = new URL("../../assets/scripts/merge-books.mjs", import.meta.url).pathname;
-
-interface ChronicleSeed {
-  threadId: string;
-  title: string;
-  updatedAt: string;
-  body: string;
-}
-
-interface TopicSeed {
-  topicSlug: string;
-  updatedAt: string;
-  contributingThreads: string[];
-  body: string;
-}
-
-interface CardSeed {
-  cardSlug: string;
-  type: "gotcha" | "pattern" | "decision" | "howto" | "tool" | "other";
-  updatedAt: string;
-  body: string;
-}
 
 interface RawSessionSeed {
   /** e.g. "claude:abc12345-..." — the key in .memarium/index.json */
@@ -92,12 +67,6 @@ interface QaSeed {
 
 interface BranchSeed {
   device: string;
-  /** project → chronicles[] */
-  chronicles?: Record<string, ChronicleSeed[]>;
-  /** project → topics[] (project may be "_global") */
-  topics?: Record<string, TopicSeed[]>;
-  /** project → cards[] (project may be "_global") */
-  cards?: Record<string, CardSeed[]>;
   /** raw_sessions to plant + register in .memarium/index.json (P7) */
   rawSessions?: RawSessionSeed[];
   /** typed memory entries to plant + register in .memarium/index.memory.json (0.9) */
@@ -115,12 +84,6 @@ let workspace: string;
 // it() spins up a bare remote + 2-3 clones; bump per-test + per-hook budget.
 const T = 60_000;
 
-function chroniclePath(project: string, c: ChronicleSeed): string {
-  const date = c.updatedAt.slice(0, 10);
-  const tid8 = c.threadId.slice(0, 8);
-  return `book/${project}/chronicle/${date}__${c.threadId}__${tid8}.md`;
-}
-
 async function setupBranch(seed: BranchSeed): Promise<void> {
   const dir = mkdtempSync(join(tmpdir(), `memarium-merge-seed-${seed.device}-`));
   await simpleGit().clone(bareRemote, dir);
@@ -133,66 +96,9 @@ async function setupBranch(seed: BranchSeed): Promise<void> {
     await g.checkout(seed.device);
   }
 
-  const bookIndex = {
-    version: 2,
-    chronicles: {} as Record<string, unknown>,
-    topics: {} as Record<string, unknown>,
-    cards: {} as Record<string, unknown>,
-  };
-
-  for (const [project, chrs] of Object.entries(seed.chronicles ?? {})) {
-    for (const c of chrs) {
-      const path = chroniclePath(project, c);
-      writeFileTo(dir, path, c.body);
-      bookIndex.chronicles[c.threadId] = {
-        threadId: c.threadId,
-        project,
-        title: c.title,
-        sessionIds: [`sess-${c.threadId}`],
-        path,
-        createdAt: c.updatedAt,
-        updatedAt: c.updatedAt,
-        tags: [],
-      };
-    }
-  }
-
-  for (const [project, tops] of Object.entries(seed.topics ?? {})) {
-    for (const t of tops) {
-      const path = `book/${project}/topics/${t.topicSlug}.md`;
-      writeFileTo(dir, path, t.body);
-      bookIndex.topics[`${project}/${t.topicSlug}`] = {
-        topicSlug: t.topicSlug,
-        project,
-        path,
-        createdAt: t.updatedAt,
-        updatedAt: t.updatedAt,
-        contributingThreads: t.contributingThreads,
-      };
-    }
-  }
-
-  for (const [project, crds] of Object.entries(seed.cards ?? {})) {
-    for (const c of crds) {
-      const path = `book/${project}/cards/${c.cardSlug}.md`;
-      writeFileTo(dir, path, c.body);
-      bookIndex.cards[`${project}/${c.cardSlug}`] = {
-        cardSlug: c.cardSlug,
-        project,
-        type: c.type,
-        path,
-        createdAt: c.updatedAt,
-        updatedAt: c.updatedAt,
-        tags: [],
-      };
-    }
-  }
-
   mkdirSync(join(dir, ".memarium"), { recursive: true });
-  writeFileSync(join(dir, ".memarium", "index.book.json"), JSON.stringify(bookIndex, null, 2));
 
-  // P7: raw_sessions + .memarium/index.json (spool index, separate from
-  // index.book.json which only carries the digested book artifacts).
+  // P7: raw_sessions + .memarium/index.json (spool index).
   if (seed.rawSessions && seed.rawSessions.length > 0) {
     const spoolIndex = {
       version: 1,
@@ -339,251 +245,20 @@ async function runMerge(env: NodeJS.ProcessEnv = {}): Promise<{ clone: string }>
   return { clone: workspace };
 }
 
-describe("merge-books.mjs (v2 schema)", () => {
-  it("dedups chronicles by threadId, latest-updatedAt wins", async () => {
+describe("merge-books.mjs (memory aggregation)", () => {
+  it("creates a commit with a memory-aggregate message", async () => {
     await setupBranch({
       device: "Mac.lan",
-      chronicles: {
-        "edge-src": [
-          { threadId: "thread-shared", title: "Shared (older)",
-            updatedAt: "2026-04-20T10:00:00.000Z",
-            body: "# Old version from Mac.lan\n" },
-          { threadId: "mac-only", title: "Mac only",
-            updatedAt: "2026-04-21T10:00:00.000Z",
-            body: "# Mac.lan exclusive\n" },
-        ],
-      },
-    });
-    await setupBranch({
-      device: "Mac-mini.local",
-      chronicles: {
-        "edge-src": [
-          { threadId: "thread-shared", title: "Shared (newer)",
-            updatedAt: "2026-04-22T10:00:00.000Z",
-            body: "# NEW version from Mac-mini\n" },
-          { threadId: "mini-only", title: "Mini only",
-            updatedAt: "2026-04-22T11:00:00.000Z",
-            body: "# Mac-mini exclusive\n" },
-        ],
-      },
-    });
-
-    await runMerge();
-
-    // Shared: Mac-mini's newer body wins; the old chronicle path (different
-    // because filename embeds date) is pruned.
-    const sharedNew = join(workspace, "book/edge-src/chronicle/2026-04-22__thread-shared__thread-s.md");
-    const sharedOld = join(workspace, "book/edge-src/chronicle/2026-04-20__thread-shared__thread-s.md");
-    expect(existsSync(sharedNew)).toBe(true);
-    expect(readFileSync(sharedNew, "utf8")).toContain("NEW version from Mac-mini");
-    expect(existsSync(sharedOld)).toBe(false);
-    // Each device's exclusive chronicle survives.
-    expect(existsSync(join(workspace, "book/edge-src/chronicle/2026-04-21__mac-only__mac-only.md"))).toBe(true);
-    expect(existsSync(join(workspace, "book/edge-src/chronicle/2026-04-22__mini-only__mini-onl.md"))).toBe(true);
-  }, T);
-
-  it("preserves per-device topic versions as <slug>.<device>.md", async () => {
-    await setupBranch({
-      device: "Mac.lan",
-      topics: { "edge-src": [{
-        topicSlug: "fullscreen", updatedAt: "2026-04-20T10:00:00.000Z",
-        contributingThreads: ["fix-1"], body: "# Mac.lan version\n",
-      }] },
-    });
-    await setupBranch({
-      device: "Mac-mini.local",
-      topics: { "edge-src": [{
-        topicSlug: "fullscreen", updatedAt: "2026-04-22T10:00:00.000Z",
-        contributingThreads: ["fix-2"], body: "# Mac-mini version\n",
-      }] },
-    });
-
-    await runMerge();
-
-    const macTopic = join(workspace, "book/edge-src/topics/fullscreen.Mac.lan.md");
-    const miniTopic = join(workspace, "book/edge-src/topics/fullscreen.Mac-mini.local.md");
-    expect(existsSync(macTopic)).toBe(true);
-    expect(readFileSync(macTopic, "utf8")).toContain("Mac.lan version");
-    expect(existsSync(miniTopic)).toBe(true);
-    expect(readFileSync(miniTopic, "utf8")).toContain("Mac-mini version");
-    // No bare fullscreen.md
-    expect(existsSync(join(workspace, "book/edge-src/topics/fullscreen.md"))).toBe(false);
-  }, T);
-
-  it("unions cards across devices; slug collision picks latest updatedAt", async () => {
-    await setupBranch({
-      device: "Mac.lan",
-      cards: {
-        "edge-src": [
-          { cardSlug: "gotcha-x", type: "gotcha",
-            updatedAt: "2026-04-20T10:00:00.000Z", body: "OLD card\n" },
-          { cardSlug: "pattern-mac-only", type: "pattern",
-            updatedAt: "2026-04-20T10:00:00.000Z", body: "Mac-only card\n" },
-        ],
-      },
-    });
-    await setupBranch({
-      device: "Mac-mini.local",
-      cards: {
-        "edge-src": [
-          { cardSlug: "gotcha-x", type: "gotcha",
-            updatedAt: "2026-04-22T10:00:00.000Z", body: "NEW card\n" },
-          { cardSlug: "tool-mini-only", type: "tool",
-            updatedAt: "2026-04-22T10:00:00.000Z", body: "Mini-only card\n" },
-        ],
-      },
-    });
-
-    await runMerge();
-
-    const collision = join(workspace, "book/edge-src/cards/gotcha-x.md");
-    expect(readFileSync(collision, "utf8")).toBe("NEW card\n");
-    expect(existsSync(join(workspace, "book/edge-src/cards/pattern-mac-only.md"))).toBe(true);
-    expect(existsSync(join(workspace, "book/edge-src/cards/tool-mini-only.md"))).toBe(true);
-  }, T);
-
-  it("supports _global cards (cross-project pool)", async () => {
-    await setupBranch({
-      device: "Mac.lan",
-      cards: {
-        "_global": [{ cardSlug: "tool-rg", type: "tool",
-          updatedAt: "2026-04-20T10:00:00.000Z", body: "ripgrep tips\n" }],
-      },
-    });
-    await setupBranch({
-      device: "Mac-mini.local",
-      cards: {
-        "_global": [{ cardSlug: "howto-git-worktree", type: "howto",
-          updatedAt: "2026-04-22T10:00:00.000Z", body: "git worktree howto\n" }],
-      },
-    });
-
-    await runMerge();
-
-    expect(existsSync(join(workspace, "book/_global/cards/tool-rg.md"))).toBe(true);
-    expect(existsSync(join(workspace, "book/_global/cards/howto-git-worktree.md"))).toBe(true);
-  }, T);
-
-  it("regenerates book/index.md + book/_meta/timeline.md with v2 vocabulary", async () => {
-    await setupBranch({
-      device: "Mac.lan",
-      chronicles: { "edge-src": [{
-        threadId: "fix-foo", title: "Fix foo",
-        updatedAt: "2026-04-20T10:00:00.000Z", body: "# Fix foo\n",
-      }] },
-      topics: { "edge-src": [{
-        topicSlug: "fullscreen", updatedAt: "2026-04-20T10:00:00.000Z",
-        contributingThreads: ["fix-foo"], body: "# Fullscreen\n",
-      }] },
-      cards: { "_global": [{
-        cardSlug: "tool-rg", type: "tool",
-        updatedAt: "2026-04-20T10:00:00.000Z", body: "rg\n",
-      }] },
-    });
-    await setupBranch({
-      device: "Mac-mini.local",
-      chronicles: { "chromium-src": [{
-        threadId: "trace-leak", title: "Trace memory leak",
-        updatedAt: "2026-04-22T10:00:00.000Z", body: "# leak\n",
-      }] },
-    });
-
-    await runMerge();
-
-    const front = readFileSync(join(workspace, "book/index.md"), "utf8");
-    // Default locale = English. Generated strings come from STRINGS_EN.
-    expect(front).toContain("Aggregated from 2 devices");
-    expect(front).toContain("edge-src");
-    expect(front).toContain("chromium-src");
-    expect(front).toContain("_global");
-    expect(front).toContain("chronicle");
-
-    const timeline = readFileSync(join(workspace, "book/_meta/timeline.md"), "utf8");
-    expect(timeline).toContain("Global timeline");
-    expect(timeline).toContain("📝 [Fix foo]");
-    expect(timeline).toContain("📝 [Trace memory leak]");
-    expect(timeline).toContain("📚 fullscreen");
-    expect(timeline).toContain("💡 [tool-rg]");
-    // Newest first: chromium fix on 04-22 > edge-src on 04-20
-    expect(timeline.indexOf("Trace memory leak")).toBeLessThan(timeline.indexOf("Fix foo"));
-  }, T);
-
-  it("renders Chinese strings when MEMARIUM_LOCALE=zh", async () => {
-    await setupBranch({
-      device: "Mac.lan",
-      chronicles: { "edge-src": [{
-        threadId: "fix-foo", title: "Fix foo",
-        updatedAt: "2026-04-20T10:00:00.000Z", body: "# Fix foo\n",
-      }] },
-    });
-
-    await runMerge({ MEMARIUM_LOCALE: "zh" });
-
-    const front = readFileSync(join(workspace, "book/index.md"), "utf8");
-    expect(front).toContain("聚合自 1 台设备");
-    expect(front).toContain("篇流水账");
-    expect(front).toContain("# 笔记本");
-    const timeline = readFileSync(join(workspace, "book/_meta/timeline.md"), "utf8");
-    expect(timeline).toContain("# 全局时间线");
-  }, T);
-
-  it("skips branches without a v2 BookIndex and exits cleanly when none have one", async () => {
-    // Branch with no .memarium/index.book.json
-    const dir = mkdtempSync(join(tmpdir(), "memarium-merge-noindex-"));
-    await simpleGit().clone(bareRemote, dir);
-    const g = simpleGit(dir);
-    await g.addConfig("user.email", "t@t");
-    await g.addConfig("user.name", "t");
-    await g.checkout(["-b", "empty-device"]);
-    writeFileSync(join(dir, "random.txt"), "hi");
-    await g.add(".");
-    await g.commit("no memarium data");
-    await g.push("origin", "empty-device", ["-u"]);
-    rmSync(dir, { recursive: true, force: true });
-
-    await expect(runMerge()).resolves.toBeDefined();
-    expect(existsSync(join(workspace, "book"))).toBe(false);
-  }, T);
-
-  it("creates a commit with v2 aggregate message", async () => {
-    await setupBranch({
-      device: "Mac.lan",
-      chronicles: { "edge-src": [{
-        threadId: "a1", title: "t",
-        updatedAt: "2026-04-20T10:00:00.000Z", body: "x",
-      }] },
+      memories: [
+        { id: "semantic/edge-src/a", type: "semantic", project: "edge-src",
+          updatedAt: "2026-06-01", body: "fact", title: "fact A" },
+      ],
     });
     const { clone } = await runMerge();
     const g = simpleGit(clone);
     const log = await g.log();
     expect(log.all[0].message).toMatch(/memarium aggregate/);
-    expect(log.all[0].message).toMatch(/chronicles?/);
-  }, T);
-
-  it("v1 BookIndex on a device branch is silently skipped (no migration)", async () => {
-    // simulate an old-memarium device that hasn't run v0.2 yet
-    const dir = mkdtempSync(join(tmpdir(), "memarium-merge-v1-"));
-    await simpleGit().clone(bareRemote, dir);
-    const g = simpleGit(dir);
-    await g.addConfig("user.email", "t@t");
-    await g.addConfig("user.name", "t");
-    await g.checkout(["-b", "old-device"]);
-    mkdirSync(join(dir, ".memarium"), { recursive: true });
-    writeFileSync(join(dir, ".memarium", "index.book.json"), JSON.stringify({
-      version: 1, threads: { "x": { threadId: "x", project: "p", title: "X",
-        sessionIds: [], articlePath: "book/p/articles/x.md",
-        articleVersion: 2, latestSourceSha: "s", articleStatus: "ok",
-        updatedAt: "2026-04-20T10:00:00Z" }}, chapters: {},
-    }));
-    writeFileTo(dir, "book/p/articles/x.md", "old article\n");
-    await g.add(".");
-    await g.commit("v1 device");
-    await g.push("origin", "old-device", ["-u"]);
-    rmSync(dir, { recursive: true, force: true });
-
-    await expect(runMerge()).resolves.toBeDefined();
-    // Old article path was NOT carried over (we only read v2)
-    expect(existsSync(join(workspace, "book/p/articles/x.md"))).toBe(false);
+    expect(log.all[0].message).toMatch(/\+1 memory/);
   }, T);
 
   it("aggregates raw_sessions/ + writes .memarium/index.aggregated.json (P7)", async () => {
@@ -645,24 +320,25 @@ describe("merge-books.mjs (v2 schema)", () => {
   }, T);
 
   it("doesn't write raw_sessions/ or .memarium/index.aggregated.json when no device has a spool index", async () => {
-    // Existing chronicle-only seeds (no rawSessions) should still merge book/
-    // cleanly, and the new aggregated files should NOT appear.
+    // A memory-only device (no rawSessions → no .memarium/index.json) must
+    // still aggregate memory cleanly, and the raw_sessions artifacts must NOT appear.
     await setupBranch({
       device: "Mac.lan",
-      chronicles: { p: [{ threadId: "t1", title: "T1",
-        updatedAt: "2026-04-20T10:00:00.000Z", body: "# c1\n" }] },
+      memories: [
+        { id: "semantic/p/m1", type: "semantic", project: "p",
+          updatedAt: "2026-04-20", body: "m1", title: "M1" },
+      ],
     });
     await runMerge();
     expect(existsSync(join(workspace, "raw_sessions"))).toBe(false);
     expect(existsSync(join(workspace, ".memarium/index.aggregated.json"))).toBe(false);
-    // chronicle still aggregated normally
-    expect(existsSync(join(workspace, "book/p/chronicle/2026-04-20__t1__t1.md"))).toBe(true);
+    // memory still aggregated normally
+    expect(existsSync(join(workspace, "memory/semantic/p/m1.md"))).toBe(true);
   }, T);
 
-  it("aggregates raw_sessions even when NO device has a v2 BookIndex (0.8.3 fix)", async () => {
-    // Devices have only raw_sessions (no /memarium digest has been run
-    // anywhere yet). Pre-0.8.3 the script early-returned on empty
-    // perDevice and raw_sessions aggregation was silently skipped.
+  it("aggregates raw_sessions from a device that only has raw_sessions (no memory yet)", async () => {
+    // Device has only raw_sessions (no /memarium digest has been run anywhere
+    // yet). raw_sessions aggregation is independent of any memory index.
     await setupBranch({
       device: "Mac.lan",
       rawSessions: [{
@@ -674,13 +350,12 @@ describe("merge-books.mjs (v2 schema)", () => {
 
     await runMerge();
 
-    // raw_sessions IS aggregated even without books
+    // raw_sessions IS aggregated on its own
     expect(existsSync(join(workspace, "raw_sessions/claude/edge-src/2026-04-20/seed__sess-onl.md"))).toBe(true);
     const agg = JSON.parse(readFileSync(join(workspace, ".memarium/index.aggregated.json"), "utf8"));
     expect(Object.keys(agg.entries)).toEqual(["claude:sess-only-raw"]);
-    // book/index.md may exist (the test helper plants an empty BookIndex
-    // unconditionally) but no chronicle files were aggregated
-    expect(existsSync(join(workspace, "book/edge-src"))).toBe(false);
+    // no book/ is ever produced
+    expect(existsSync(join(workspace, "book"))).toBe(false);
   }, T);
 
   it("aggregates memory/ + index.memory.json across devices, union by id, latest wins (0.9 memory)", async () => {
@@ -1033,13 +708,14 @@ describe("merge-books.mjs (v2 schema)", () => {
     // (e.g. the device hasn't upgraded yet). Without the guard, keptEntityPaths
     // would be [] and the prune walk would delete all memory/entities/**/*.md.
     //
-    // Device branch: books + raw_sessions but NO entities key.
+    // Device branch: raw_sessions but NO entities key.
     await setupBranch({
       device: "Mac.lan",
-      chronicles: { "edge-src": [{
-        threadId: "t-no-entity", title: "No entity index",
-        updatedAt: "2026-06-01T00:00:00.000Z", body: "# chronicle only\n",
-      }] },
+      rawSessions: [{
+        sessionId: "sess-no-entity", tool: "claude", project: "edge-src",
+        startedAt: "2026-06-01T00:00:00.000Z", sourceMtimeMs: 1_000_000,
+        body: "# raw only\n",
+      }],
       // No `entities` field → no .memarium/index.entity.json on this device
     });
 
@@ -1076,10 +752,11 @@ describe("merge-books.mjs (v2 schema)", () => {
     // (excluding memory/entities/, which is the entity pass's territory).
     await setupBranch({
       device: "Mac.lan",
-      chronicles: { "edge-src": [{
-        threadId: "t-no-memory", title: "No memory index",
-        updatedAt: "2026-06-01T00:00:00.000Z", body: "# chronicle only\n",
-      }] },
+      rawSessions: [{
+        sessionId: "sess-no-memory", tool: "claude", project: "edge-src",
+        startedAt: "2026-06-01T00:00:00.000Z", sourceMtimeMs: 1_000_000,
+        body: "# raw only\n",
+      }],
       // No `memories` field → no .memarium/index.memory.json on this device
     });
 
@@ -1140,10 +817,11 @@ describe("merge-books.mjs (v2 schema)", () => {
   it("qa prune is SKIPPED when no device has a qa index (no-index-no-prune)", async () => {
     await setupBranch({
       device: "Mac.lan",
-      chronicles: { "edge-src": [{
-        threadId: "t-no-qa", title: "No qa index",
-        updatedAt: "2026-06-01T00:00:00.000Z", body: "# chronicle only\n",
-      }] },
+      rawSessions: [{
+        sessionId: "sess-no-qa", tool: "claude", project: "edge-src",
+        startedAt: "2026-06-01T00:00:00.000Z", sourceMtimeMs: 1_000_000,
+        body: "# raw only\n",
+      }],
     });
 
     await simpleGit().clone(bareRemote, workspace);

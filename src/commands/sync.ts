@@ -18,9 +18,9 @@ import { INDEX_REL } from "../repo-data-dir.js";
  * Copilot Chat), write per-session raw + md to the user's git repo as
  * **plaintext**, then commit + push to the device branch.
  *
- * memarium v0.2 explicitly does NOT call any LLM here. The book-writing
+ * memarium v0.2 explicitly does NOT call any LLM here. The memory-writing
  * pipeline is the in-session `/memarium` slash command driven by skills/
- * memarium/SKILL.md, calling `memarium prepare` + `memarium publish`.
+ * memarium/SKILL.md, calling `memarium prepare` + `memarium memory-write`.
  */
 export interface SyncOptions {
   repoPath: string;
@@ -320,6 +320,6 @@ export async function syncCmd(): Promise<void> {
   console.log(chalk.bold(`\nSynced: +${r.newCount} new, ${r.skippedCount} unchanged`));
   if (r.committed) console.log(chalk.cyan(r.pushed ? "Pushed." : "Committed (push failed)."));
   if (r.newCount > 0) {
-    console.log(chalk.cyan("\nNext: in Claude Code, run `/memarium` to digest into chronicle/topics/cards."));
+    console.log(chalk.cyan("\nNext: in Claude Code, run `/memarium` to digest into typed memory."));
   }
 }

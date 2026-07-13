@@ -7,8 +7,8 @@ Claude Code + VS Code Copilot Chat sessions on every machine you use,
 pushes them to a private git repo, and lets you `resume` a session
 on a different laptop than where it started.
 
-For digest + recall (chronicles, topics, "what did past-me figure out"
-queries), install the **Claude Code plugin**:
+For digest + recall (typed memory — episodes, decisions, "what did
+past-me figure out" queries), install the **Claude Code plugin**:
 
 ```text
 /plugin marketplace add june9593/memarium-plugin
@@ -91,17 +91,19 @@ digest tooling can later reason about same-source threads.
 - `~/.memarium/session-repo/` — git working tree of your private memory repo
   - `raw_sessions/<tool>/<project>/<date>/*.{md,raw.json,jsonl}` — sync-rendered session copies plus the original jsonl (preserved for resume)
   - `.memarium/index.json` — spool index (co-owned with the plugin)
-  - `book/` and `.memarium/index.book.json` — written by the plugin if you have it installed
+  - `memory/` and `.memarium/index.memory.json` (+ `index.entity.json` / `index.qa.json`) — written by the plugin if you have it installed
 
-The npm CLI does not touch `book/` or `.memarium/index.book.json` — those
+The npm CLI does not touch `memory/` or the plugin's memory indexes — those
 are the plugin's domain. The plugin in turn does not touch `.git/` or
 `config.json` — those are sync's.
 
 ## Migration from v0.4.x
 
-If you upgraded from v0.4.x and miss `memarium prepare` / `publish` /
-`recall` / `serve` / `build-site` — those moved to the Claude Code plugin.
-Install it as shown at the top of this README. Your existing
+If you upgraded from v0.4.x and miss `memarium prepare` / `recall` —
+digest + recall now run in-session via the Claude Code plugin's
+`/memarium` and `/memarium-recall` skills (the old `publish` / `serve` /
+`build-site` book commands were retired in the book→memory collapse).
+Install the plugin as shown at the top of this README. Your existing
 `~/.memarium/session-repo/` data is unchanged; the plugin reads it and
 writes its own additions there.
 

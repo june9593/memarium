@@ -38,7 +38,7 @@ describe("workflowInitCmd (local-only mode)", () => {
     expect(existsSync(yamlOut)).toBe(true);
     expect(existsSync(scriptOut)).toBe(true);
     const yaml = readFileSync(yamlOut, "utf8");
-    expect(yaml).toContain("memarium aggregate book");
+    expect(yaml).toContain("memarium aggregate memory");
     expect(yaml).toContain("merge-books.mjs");
     expect(yaml).not.toContain("MEMARIUM_PASSPHRASE");
     const script = readFileSync(scriptOut, "utf8");
@@ -60,7 +60,7 @@ describe("workflowInitCmd (local-only mode)", () => {
     writeFileSync(yamlOut, "existing\n");
     const { workflowInitCmd } = await import("../../src/commands/workflow.js");
     await workflowInitCmd({ force: true });
-    expect(readFileSync(yamlOut, "utf8")).toContain("memarium aggregate book");
+    expect(readFileSync(yamlOut, "utf8")).toContain("memarium aggregate memory");
   });
 });
 
@@ -159,34 +159,15 @@ describe("workflowInitCmd (remote mode → writes to main via temp worktree)", (
     await g.checkout("main");
     expect(existsSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"))).toBe(true);
     expect(existsSync(join(verifyClone, "scripts", "merge-books.mjs"))).toBe(true);
-    // The yaml on main should have the locale placeholder substituted to "en"
-    // (matches config's default bookLocale).
+    // The yaml is installed verbatim — no locale placeholder (book rendering
+    // was removed; the aggregator is memory-only).
     const yamlBody = readFileSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"), "utf8");
-    expect(yamlBody).toContain('MEMARIUM_LOCALE: "en"');
+    expect(yamlBody).not.toContain("MEMARIUM_LOCALE");
     expect(yamlBody).not.toContain("__MEMARIUM_LOCALE__");
     // Device branch test-device should NOT have these (clean separation)
     await g.checkout("test-device");
     expect(existsSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"))).toBe(false);
     expect(existsSync(join(verifyClone, "scripts", "merge-books.mjs"))).toBe(false);
-    rmSync(verifyClone, { recursive: true, force: true });
-  }, 30_000);
-
-  it("substitutes bookLocale=zh from config into the workflow yaml", async () => {
-    // Override config's bookLocale to zh
-    const cfgPath = join(tmpHome, ".memarium", "config.json");
-    const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
-    cfg.bookLocale = "zh";
-    writeFileSync(cfgPath, JSON.stringify(cfg));
-
-    const { workflowInitCmd } = await import("../../src/commands/workflow.js");
-    await workflowInitCmd({});
-
-    const { simpleGit } = await import("simple-git");
-    const verifyClone = mkdtempSync(join(tmpdir(), "memarium-wf-zh-"));
-    await simpleGit().clone(bareRemote, verifyClone);
-    await simpleGit(verifyClone).checkout("main");
-    const yamlBody = readFileSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"), "utf8");
-    expect(yamlBody).toContain('MEMARIUM_LOCALE: "zh"');
     rmSync(verifyClone, { recursive: true, force: true });
   }, 30_000);
 

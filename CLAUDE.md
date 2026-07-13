@@ -14,9 +14,9 @@ No LLM calls — pure I/O.
 
 The **digest + recall** half lives in the separate
 `june9593/memarium-plugin` repo (`~/edge/memarium-plugin/`), installed
-into Claude Code via `/plugin install memarium`. That's where chronicles,
-topics, the /memarium write skill, the /memarium-recall read skill, and
-the Astro book site template live.
+into Claude Code via `/plugin install memarium`. That's where the typed
+memory (episodes + semantic/procedural/core facts, entities, qa), the
+/memarium write skill, and the /memarium-recall read skill live.
 
 **Active version**: check `package.json`. Never hard-code a version in
 code or chat.
@@ -54,7 +54,7 @@ src/
 
 assets/
   workflows/memarium-aggregate.yml   # template; `memarium workflow init` writes it to main
-  scripts/merge-books.mjs            # CI aggregator — unions book/ + raw_sessions/ from device branches
+  scripts/merge-books.mjs            # CI aggregator — unions raw_sessions/ + memory/entity/qa from device branches
 
 marketing-site/                      # project landing page (live at Pages)
 ```
@@ -93,9 +93,9 @@ marketing-site/                      # project landing page (live at Pages)
 5. **CI aggregation lives on main** (0.5.3 fix). `memarium workflow init`
    installs `memarium-aggregate.yml` + `merge-books.mjs` to the **main**
    branch, not the device branch. Workflow triggers on push to any
-   non-main branch and runs `merge-books.mjs` which: (a) merges device
-   branches' `book/` (dedup chronicles by threadId, per-device topic
-   forks, union cards), and (b) aggregates raw_sessions/ + writes
+   non-main branch and runs `merge-books.mjs` which aggregates each device
+   branch's `raw_sessions/` + `memory/` (+ `memory/entities/`, `memory/qa/`)
+   — union by session/id, latest wins — and writes
    `.memarium/index.aggregated.json` (P7, 0.8.0). Don't add scripts/
    to device branches.
 
@@ -143,11 +143,11 @@ Bump rules:
   publish accidentally shipped 21 stale files). Don't remove the `clean`
   script.
 - `dist/` is `.gitignore`'d but in `npm pack`; don't add it to `.npmignore`.
-- The book reading site (`build-site` / `serve`) lives in the **plugin**,
-  not here — those commands moved to memarium-plugin in 0.5. The dead
-  npm-side `site-template/` + `workflow pages-init` were removed in 0.13.0.
-  Don't re-add a book-site builder to this repo; `marketing-site/` (the
-  project landing page) is unrelated and stays.
+- There is no book reading site anymore — it was retired in the book→memory
+  collapse (Phase C1 deleted the plugin's Astro book-site template; the dead
+  npm-side `site-template/` + `workflow pages-init` were already removed in
+  0.13.0). Don't re-add a book-site builder to this repo; `marketing-site/`
+  (the project landing page) is unrelated and stays.
 - Don't add `docs/` back to git — it was untracked on 2026-04-29 to
   open-source the repo. `docs/superpowers/roadmap.md` is Yue's local
   working notes; never `git add docs/`.

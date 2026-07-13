@@ -94,10 +94,10 @@ describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
     expect(result2.skippedCount).toBe(1);
   });
 
-  it("never creates book/ — that's /memarium's job, not sync's", async () => {
+  it("never creates digest artifacts (book/ or memory/) — that's /memarium's job, not sync's", async () => {
     await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
     expect(existsSync(join(repo, "book"))).toBe(false);
-    expect(existsSync(join(repo, ".memarium/index.book.json"))).toBe(false);
+    expect(existsSync(join(repo, "memory"))).toBe(false);
   });
 
   it("skips empty-shell sessions (0 messages) without writing files or indexing", async () => {
@@ -155,7 +155,7 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     mkdirSync(join(seed, ".github", "workflows"), { recursive: true });
     writeFileSync(
       join(seed, ".github/workflows/memarium-aggregate.yml"),
-      "name: memarium aggregate book\non: { push: { branches-ignore: [main] } }\njobs: { aggregate: { runs-on: ubuntu-latest, steps: [{ run: 'echo hi' }] } }\n",
+      "name: memarium aggregate memory\non: { push: { branches-ignore: [main] } }\njobs: { aggregate: { runs-on: ubuntu-latest, steps: [{ run: 'echo hi' }] } }\n",
     );
     await sg.add(".");
     await sg.commit("seed main with aggregate workflow");
@@ -208,7 +208,7 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     const { simpleGit } = await import("simple-git");
     // Plant the same workflow content locally first
     mkdirSync(join(workRepo, ".github/workflows"), { recursive: true });
-    const wfContent = "name: memarium aggregate book\non: { push: { branches-ignore: [main] } }\njobs: { aggregate: { runs-on: ubuntu-latest, steps: [{ run: 'echo hi' }] } }\n";
+    const wfContent = "name: memarium aggregate memory\non: { push: { branches-ignore: [main] } }\njobs: { aggregate: { runs-on: ubuntu-latest, steps: [{ run: 'echo hi' }] } }\n";
     writeFileSync(join(workRepo, ".github/workflows/memarium-aggregate.yml"), wfContent);
     await simpleGit(workRepo).add(".github/workflows/memarium-aggregate.yml");
     await simpleGit(workRepo).commit("pre-seed workflow on device branch");
