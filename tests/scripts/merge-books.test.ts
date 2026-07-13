@@ -708,7 +708,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     // (e.g. the device hasn't upgraded yet). Without the guard, keptEntityPaths
     // would be [] and the prune walk would delete all memory/entities/**/*.md.
     //
-    // Device branch: books + raw_sessions but NO entities key.
+    // Device branch: raw_sessions but NO entities key.
     await setupBranch({
       device: "Mac.lan",
       rawSessions: [{

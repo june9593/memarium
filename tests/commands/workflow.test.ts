@@ -38,7 +38,7 @@ describe("workflowInitCmd (local-only mode)", () => {
     expect(existsSync(yamlOut)).toBe(true);
     expect(existsSync(scriptOut)).toBe(true);
     const yaml = readFileSync(yamlOut, "utf8");
-    expect(yaml).toContain("memarium aggregate book");
+    expect(yaml).toContain("memarium aggregate memory");
     expect(yaml).toContain("merge-books.mjs");
     expect(yaml).not.toContain("MEMARIUM_PASSPHRASE");
     const script = readFileSync(scriptOut, "utf8");
@@ -60,7 +60,7 @@ describe("workflowInitCmd (local-only mode)", () => {
     writeFileSync(yamlOut, "existing\n");
     const { workflowInitCmd } = await import("../../src/commands/workflow.js");
     await workflowInitCmd({ force: true });
-    expect(readFileSync(yamlOut, "utf8")).toContain("memarium aggregate book");
+    expect(readFileSync(yamlOut, "utf8")).toContain("memarium aggregate memory");
   });
 });
 
