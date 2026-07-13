@@ -3,9 +3,10 @@
 //
 // Called from .github/workflows/memarium-aggregate.yml — checked-in on main,
 // runs on every push to a non-main branch. Purely mechanical; never touches
-// an LLM. The LLM work happens in-session via the /memarium skill on each
-// device, which writes typed memory (+ entities, qa) and raw_sessions into
-// that device's branch. This script merges all those device branches into main.
+// an LLM. Two independent producers feed the device branch: the in-session
+// /memarium skill writes typed memory (+ entities, qa), and `memarium sync`
+// (npm CLI) writes/pushes raw_sessions. This script merges all those device
+// branches into main.
 //
 // Aggregation passes — each independent, keyed off its own device-branch index:
 //   raw_sessions/    — union by tool:sessionId, latest sourceMtimeMs wins (P7).

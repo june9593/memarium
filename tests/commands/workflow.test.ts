@@ -160,7 +160,7 @@ describe("workflowInitCmd (remote mode → writes to main via temp worktree)", (
     expect(existsSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"))).toBe(true);
     expect(existsSync(join(verifyClone, "scripts", "merge-books.mjs"))).toBe(true);
     // The yaml is installed verbatim — no locale placeholder (book rendering
-    // was removed in 0.15; the aggregator is memory-only).
+    // was removed; the aggregator is memory-only).
     const yamlBody = readFileSync(join(verifyClone, ".github", "workflows", "memarium-aggregate.yml"), "utf8");
     expect(yamlBody).not.toContain("MEMARIUM_LOCALE");
     expect(yamlBody).not.toContain("__MEMARIUM_LOCALE__");
