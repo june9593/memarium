@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.15.0 — 2026-07-13
+
+### Drop the book aggregation pass (Phase C2, npm side)
+
+The plugin went memory-only in 0.18 (it no longer produces a `book/`); this
+removes the matching book machinery from the npm CLI + CI aggregator. Purely
+dead-code removal — the raw_sessions / memory / entity / qa passes are
+untouched.
+
+- **`assets/scripts/merge-books.mjs`:** removed the book pass entirely —
+  `loadBookIndexFromBranch`, the chronicle/topic/card collection + copy +
+  prune (`pruneStale` / `pruneSubdir` / `pruneTopicsDir`), and the whole
+  catalog renderer (`regenCatalog` + `renderFront` / `renderTimeline` /
+  `strings` / `renderProjectIndex` / helpers). The script keeps its filename
+  (`doctor` checks for it) and still aggregates raw_sessions/memory/entity/qa.
+- **`memarium-aggregate.yml` + `workflow.ts`:** dropped the `MEMARIUM_LOCALE`
+  env line + the `bookLocale`→placeholder substitution (book rendering is gone,
+  so there are no locale-dependent strings left to render).
+- **`config.ts` / `init.ts` / `init-wizard.ts`:** removed the `bookLocale`
+  config field.
+- **`repo-data-dir.ts`:** removed `BOOK_INDEX_REL` / `bookIndexAbs`.
+- De-book'd user-facing strings in `sync` / `doctor` / `init-wizard` / `cli`.
+
+Tests: rewrote `merge-books.test.ts` around the memory passes (dropped the
+book seeds/assertions); updated `workflow` / `sync` / resume / materialize
+tests. 270 tests green, tsc + build clean.
+
+**Latent CI note:** existing installs keep running the old book-aware
+aggregator until the user re-runs `memarium workflow init` (which pushes the
+new script + yaml to `origin/main`). The old script still aggregates
+raw_sessions/memory/entity/qa correctly in the meantime — book aggregation
+just no-ops once devices stop producing `book/`.
+
 ## 0.14.0 — 2026-07-03
 
 ### `doctor`: drop the memex check

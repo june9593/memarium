@@ -24,7 +24,6 @@ describe("resume end-to-end (0.6)", () => {
         includeReasoning: true,
         threadingConcurrency: 4, threadingMaxAttempts: 3,
         digestEnabled: true,
-        bookLocale: "en",
       }),
     );
     // Plant a realistic md with frontmatter + content blocks

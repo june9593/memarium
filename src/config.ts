@@ -62,9 +62,9 @@ const Schema = z.object({
   repoUrl: z.string(),
   deviceBranch: z.string().default(""),
   runner: z.enum(["claude-cli", "anthropic-api"]).default("claude-cli"),
-  /** When true, the user opted into the CI book-aggregation workflow
+  /** When true, the user opted into the CI memory-aggregation workflow
    *  (scripts/merge-books.mjs runs on push to any non-main branch and
-   *  merges device books into main). Purely informational — the workflow
+   *  merges device memory into main). Purely informational — the workflow
    *  yaml + script live in the user's repo, not driven by this flag. */
   enableAggregateCI: z.boolean().default(false),
   /** When true, include the assistant's reasoning/thinking content in synced
@@ -80,10 +80,6 @@ const Schema = z.object({
    *  Used by `memarium resume` to rewrite jsonl paths from another machine
    *  into local paths. Set via `memarium config --map-path A=B`. */
   pathMap: z.record(z.string()).optional(),
-  /** Locale for the rendered book pages (book/index.md, book/_meta/timeline.md,
-   *  per-project index pages). Drives string tables in merge-books.mjs via
-   *  the MEMARIUM_LOCALE env var the workflow yml exports. Default "en". */
-  bookLocale: z.enum(["en", "zh"]).default("en"),
 });
 export type Config = z.infer<typeof Schema>;
 

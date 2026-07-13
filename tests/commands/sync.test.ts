@@ -94,10 +94,10 @@ describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
     expect(result2.skippedCount).toBe(1);
   });
 
-  it("never creates book/ — that's /memarium's job, not sync's", async () => {
+  it("never creates digest artifacts (book/ or memory/) — that's /memarium's job, not sync's", async () => {
     await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
     expect(existsSync(join(repo, "book"))).toBe(false);
-    expect(existsSync(join(repo, ".memarium/index.book.json"))).toBe(false);
+    expect(existsSync(join(repo, "memory"))).toBe(false);
   });
 
   it("skips empty-shell sessions (0 messages) without writing files or indexing", async () => {

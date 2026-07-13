@@ -17,7 +17,7 @@ import { aggregatedPath } from "../aggregated-store.js";
  *   3. Claude plugin marketplace clone present at
  *      ~/.claude/plugins/marketplaces/memarium-plugin/ (outside-in install).
  *      Informational — npm memarium handles cross-device sync on its own;
- *      the plugin only adds chronicle digest + recall.
+ *      the plugin only adds memory digest + recall.
  *   4. `~/.memarium/config.json` exists, repoPath exists + is a git repo
  *   5. 0.5.x spool residue (.raw.json + .jsonl) — memarium 0.6 only writes .md
  *   5b. resume-forks.json residue from 0.5.1 fork-tracking
@@ -111,7 +111,7 @@ export async function doctorCmd(): Promise<void> {
   } else {
     checks.push({
       name: "Claude plugin", status: "warn",
-      detail: "memarium-plugin (chronicle digest + recall) not installed",
+      detail: "memarium-plugin (memory digest + recall) not installed",
       fix: "/plugin marketplace add june9593/memarium-plugin && /plugin install memarium   # optional — npm memarium handles cross-device sync; the plugin handles digest + recall",
     });
   }

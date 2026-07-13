@@ -26,7 +26,6 @@ describe("resumeCmd (0.6 — context-as-prompt)", () => {
         threadingConcurrency: 4,
         threadingMaxAttempts: 3,
         digestEnabled: true,
-        bookLocale: "en",
         pathMap: { "/Users/yueA": fakeHome },
       }),
     );

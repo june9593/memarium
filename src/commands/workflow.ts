@@ -30,13 +30,11 @@ const WORKFLOW_REL = ".github/workflows/memarium-aggregate.yml";
 const SCRIPT_REL = "scripts/merge-books.mjs";
 
 /**
- * Read the workflow yaml template and substitute the user's `bookLocale`
- * into the `MEMARIUM_LOCALE` env line. Done at install time so the
- * locale travels with the workflow on main (not pulled per-CI-run).
+ * Read the workflow yaml template. Kept as a helper so both the local-only
+ * and worktree install paths render from the same source.
  */
-function renderWorkflowYaml(bookLocale: string): string {
-  const raw = readFileSync(assetPath("assets/workflows/memarium-aggregate.yml"), "utf8");
-  return raw.replace("__MEMARIUM_LOCALE__", bookLocale);
+function renderWorkflowYaml(): string {
+  return readFileSync(assetPath("assets/workflows/memarium-aggregate.yml"), "utf8");
 }
 
 /**
@@ -69,7 +67,7 @@ export async function workflowInitCmd(opts: { force?: boolean; noPush?: boolean 
       return;
     }
     mkdirSync(dirname(yamlTarget), { recursive: true });
-    writeFileSync(yamlTarget, renderWorkflowYaml(cfg.bookLocale));
+    writeFileSync(yamlTarget, renderWorkflowYaml());
     mkdirSync(dirname(scriptTarget), { recursive: true });
     writeFileSync(scriptTarget, readFileSync(assetPath("assets/scripts/merge-books.mjs"), "utf8"));
     console.log(chalk.green(`workflow + script written under ${cfg.repoPath}`));
@@ -106,7 +104,7 @@ export async function workflowInitCmd(opts: { force?: boolean; noPush?: boolean 
     async (worktreePath) => {
       const yamlAbs = join(worktreePath, WORKFLOW_REL);
       const scriptAbs = join(worktreePath, SCRIPT_REL);
-      const newYaml = renderWorkflowYaml(cfg.bookLocale);
+      const newYaml = renderWorkflowYaml();
       const newScript = readFileSync(assetPath("assets/scripts/merge-books.mjs"), "utf8");
       // If the file is already present on main and we're not --force, skip.
       if (!opts.force && existsSync(yamlAbs) && existsSync(scriptAbs)) {
@@ -129,7 +127,7 @@ export async function workflowInitCmd(opts: { force?: boolean; noPush?: boolean 
   if (r.committed && r.pushed) {
     console.log(chalk.green(`\n✓ workflow + script pushed to origin/main`));
     console.log(chalk.gray("The workflow fires on every push to a non-main branch."));
-    console.log(chalk.gray("Each device's `memarium sync` will trigger it; CI merges all device book/s into main."));
+    console.log(chalk.gray("Each device's `memarium sync` will trigger it; CI merges all device memory into main."));
   } else if (!r.committed) {
     console.log(chalk.gray("\nMain already has the latest workflow + script (no-op)."));
   } else {

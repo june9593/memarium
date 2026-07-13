@@ -55,11 +55,7 @@ jobs:
           git config user.name  "memarium-bot"
           git config user.email "memarium-bot@users.noreply.github.com"
 
-      - name: Aggregate device books into main
-        env:
-          # Locale for rendered book pages. Substituted by `memarium workflow init`
-          # from the user's ~/.memarium/config.json `bookLocale` field. Default "en".
-          MEMARIUM_LOCALE: "__MEMARIUM_LOCALE__"
+      - name: Aggregate device memory into main
         run: node scripts/merge-books.mjs
 
       - name: Push main
