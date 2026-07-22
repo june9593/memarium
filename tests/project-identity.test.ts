@@ -26,7 +26,7 @@ describe("canonicalProjectId — collapses every remote form to host/path", () =
     // unparseable / local → null (caller falls back to path slug)
     ["", null],
     ["   ", null],
-    ["/home/me/edge/memvc", null],
+    ["/home/me/code/demo", null],
     ["not a url", null],
   ];
   for (const [input, expected] of cases) {
@@ -62,7 +62,7 @@ describe("resolveProjectId — remote first, path fallback", () => {
   it("uses the remote slug when a remote resolves (path-independent)", async () => {
     const get = async () => "git@github.com:june9593/memvc.git";
     // SAME remote, DIFFERENT local paths → SAME slug (the whole point)
-    const a = await resolveProjectId("/Users/me/edge/memvc", get);
+    const a = await resolveProjectId("/Users/me/code/demo", get);
     const b = await resolveProjectId("/Users/me/work/memvc", get);
     const c = await resolveProjectId("/Users/me/projects/memvc", get);
     expect(a.slug).toBe("github.com-june9593-memvc");
@@ -74,17 +74,17 @@ describe("resolveProjectId — remote first, path fallback", () => {
 
   it("falls back to the path slug when there's no remote", async () => {
     const get = async () => null;
-    const r = await resolveProjectId("/Users/me/edge/memvc", get);
-    expect(r.slug).toBe("edge-memvc"); // legacy projectSlugFromPath
+    const r = await resolveProjectId("/Users/me/code/demo", get);
+    expect(r.slug).toBe("code-demo"); // legacy projectSlugFromPath
     expect(r.source).toBe("path");
     expect(r.canonical).toBeNull();
   });
 
   it("falls back to path slug when getRemote throws", async () => {
     const get = async () => { throw new Error("not a git repo"); };
-    const r = await resolveProjectId("/Users/me/edge/memvc", get);
+    const r = await resolveProjectId("/Users/me/code/demo", get);
     expect(r.source).toBe("path");
-    expect(r.slug).toBe("edge-memvc");
+    expect(r.slug).toBe("code-demo");
   });
 
   it("real git fixture: reads remote.origin.url via default resolver", async () => {

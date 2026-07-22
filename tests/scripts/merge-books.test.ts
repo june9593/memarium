@@ -250,7 +250,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await setupBranch({
       device: "Mac.lan",
       memories: [
-        { id: "semantic/edge-src/a", type: "semantic", project: "edge-src",
+        { id: "semantic/code-src/a", type: "semantic", project: "code-src",
           updatedAt: "2026-06-01", body: "fact", title: "fact A" },
       ],
     });
@@ -266,12 +266,12 @@ describe("merge-books.mjs (memory aggregation)", () => {
       device: "Mac.lan",
       rawSessions: [
         {
-          sessionId: "sess-mac-aaaa", tool: "claude", project: "edge-src",
+          sessionId: "sess-mac-aaaa", tool: "claude", project: "code-src",
           startedAt: "2026-04-20T10:00:00.000Z", sourceMtimeMs: 1_000_000,
           body: "# md from Mac.lan (sess-mac)\n",
         },
         {
-          sessionId: "sess-shared", tool: "claude", project: "edge-src",
+          sessionId: "sess-shared", tool: "claude", project: "code-src",
           startedAt: "2026-04-20T11:00:00.000Z", sourceMtimeMs: 1_000_000,
           body: "# OLD body from Mac.lan\n",
         },
@@ -286,7 +286,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
           body: "# md from Mac-mini (sess-mini)\n",
         },
         {
-          sessionId: "sess-shared", tool: "claude", project: "edge-src",
+          sessionId: "sess-shared", tool: "claude", project: "code-src",
           startedAt: "2026-04-20T11:00:00.000Z", sourceMtimeMs: 2_000_000,
           body: "# NEW body from Mac-mini (won via higher mtime)\n",
         },
@@ -295,9 +295,9 @@ describe("merge-books.mjs (memory aggregation)", () => {
 
     await runMerge();
 
-    const macMd = join(workspace, "raw_sessions/claude/edge-src/2026-04-20/seed__sess-mac.md");
+    const macMd = join(workspace, "raw_sessions/claude/code-src/2026-04-20/seed__sess-mac.md");
     const miniMd = join(workspace, "raw_sessions/copilot/chromium/2026-04-22/seed__sess-min.md");
-    const sharedMd = join(workspace, "raw_sessions/claude/edge-src/2026-04-20/seed__sess-sha.md");
+    const sharedMd = join(workspace, "raw_sessions/claude/code-src/2026-04-20/seed__sess-sha.md");
     expect(existsSync(macMd)).toBe(true);
     expect(existsSync(miniMd)).toBe(true);
     expect(existsSync(sharedMd)).toBe(true);
@@ -342,7 +342,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await setupBranch({
       device: "Mac.lan",
       rawSessions: [{
-        sessionId: "sess-only-raw", tool: "claude", project: "edge-src",
+        sessionId: "sess-only-raw", tool: "claude", project: "code-src",
         startedAt: "2026-04-20T10:00:00.000Z", sourceMtimeMs: 1_000_000,
         body: "# md from a device that never ran /memarium digest\n",
       }],
@@ -351,7 +351,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await runMerge();
 
     // raw_sessions IS aggregated on its own
-    expect(existsSync(join(workspace, "raw_sessions/claude/edge-src/2026-04-20/seed__sess-onl.md"))).toBe(true);
+    expect(existsSync(join(workspace, "raw_sessions/claude/code-src/2026-04-20/seed__sess-onl.md"))).toBe(true);
     const agg = JSON.parse(readFileSync(join(workspace, ".memarium/index.aggregated.json"), "utf8"));
     expect(Object.keys(agg.entries)).toEqual(["claude:sess-only-raw"]);
     // no book/ is ever produced
@@ -362,7 +362,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await setupBranch({
       device: "Mac.lan",
       memories: [
-        { id: "semantic/edge-src/a", type: "semantic", project: "edge-src",
+        { id: "semantic/code-src/a", type: "semantic", project: "code-src",
           updatedAt: "2026-06-01", body: "older", title: "fact A" },
         { id: "core/_global/rule", type: "core", project: null,
           updatedAt: "2026-06-01", body: "never publish", title: "rule" },
@@ -371,25 +371,25 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await setupBranch({
       device: "Mac-mini",
       memories: [
-        { id: "semantic/edge-src/a", type: "semantic", project: "edge-src",
+        { id: "semantic/code-src/a", type: "semantic", project: "code-src",
           updatedAt: "2026-06-09", body: "NEWER wins", title: "fact A" },
-        { id: "procedural/edge-src/b", type: "procedural", project: "edge-src",
+        { id: "procedural/code-src/b", type: "procedural", project: "code-src",
           updatedAt: "2026-06-09", body: "how-to", title: "playbook B" },
       ],
     });
 
     await runMerge();
 
-    const aMd = readFileSync(join(workspace, "memory/semantic/edge-src/a.md"), "utf8");
+    const aMd = readFileSync(join(workspace, "memory/semantic/code-src/a.md"), "utf8");
     expect(aMd).toContain("NEWER wins");
     expect(existsSync(join(workspace, "memory/core/_global/rule.md"))).toBe(true);
-    expect(existsSync(join(workspace, "memory/procedural/edge-src/b.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/procedural/code-src/b.md"))).toBe(true);
 
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
     expect(Object.keys(idx.entries).sort()).toEqual([
-      "core/_global/rule", "procedural/edge-src/b", "semantic/edge-src/a",
+      "core/_global/rule", "procedural/code-src/b", "semantic/code-src/a",
     ]);
-    expect(idx.entries["semantic/edge-src/a"].originDevice).toBe("Mac-mini");
+    expect(idx.entries["semantic/code-src/a"].originDevice).toBe("Mac-mini");
   }, T);
 
   it("skips memory entries with unsafe paths (path traversal guard)", async () => {
@@ -397,7 +397,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
       device: "Mac.lan",
       memories: [
         // Safe entry — should be aggregated normally
-        { id: "semantic/edge-src/safe", type: "semantic", project: "edge-src",
+        { id: "semantic/code-src/safe", type: "semantic", project: "code-src",
           updatedAt: "2026-06-01", body: "safe content", title: "safe entry" },
         // Malicious entry: path points outside memory/ via ../
         { id: "evil/traversal/id", type: "semantic", project: null,
@@ -417,7 +417,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await runMerge();
 
     // Safe entry was written
-    expect(existsSync(join(workspace, "memory/semantic/edge-src/safe.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/semantic/code-src/safe.md"))).toBe(true);
 
     // Traversal attempts were NOT written outside memory/
     expect(existsSync(join(workspace, "evil.md"))).toBe(false);
@@ -431,7 +431,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     expect(Object.keys(idx.entries)).not.toContain("evil/absolute/id");
     expect(Object.keys(idx.entries)).not.toContain("evil/github/id");
     // Only safe entry survives
-    expect(Object.keys(idx.entries)).toEqual(["semantic/edge-src/safe"]);
+    expect(Object.keys(idx.entries)).toEqual(["semantic/code-src/safe"]);
   }, T);
 
   it("memory pass skips entries whose path falls under memory/entities/ (subtree isolation)", async () => {
@@ -443,28 +443,28 @@ describe("merge-books.mjs (memory aggregation)", () => {
       device: "Mac.lan",
       memories: [
         // Normal memory entry — should be aggregated
-        { id: "semantic/edge-src/normalFact", type: "semantic", project: "edge-src",
+        { id: "semantic/code-src/normalFact", type: "semantic", project: "code-src",
           updatedAt: "2026-06-01", body: "safe memory body", title: "normal" },
         // Entry whose path sneaks into memory/entities/; isSafeMemoryPath passes
         // it but the memory pass must skip it
         { id: "entity/sneaky/id", type: "semantic", project: null,
           updatedAt: "2026-06-01", body: "should not be written by memory pass", title: "sneaky",
-          path: "memory/entities/edge-src/x.md" },
+          path: "memory/entities/code-src/x.md" },
       ],
     });
 
     await runMerge();
 
     // Normal memory entry was written
-    expect(existsSync(join(workspace, "memory/semantic/edge-src/normalFact.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/semantic/code-src/normalFact.md"))).toBe(true);
 
     // The sneaky entity-subtree path must NOT have been written by the memory pass
-    expect(existsSync(join(workspace, "memory/entities/edge-src/x.md"))).toBe(false);
+    expect(existsSync(join(workspace, "memory/entities/code-src/x.md"))).toBe(false);
 
     // And it must not appear in the aggregated memory index
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
     expect(Object.keys(idx.entries)).not.toContain("entity/sneaky/id");
-    expect(Object.keys(idx.entries)).toEqual(["semantic/edge-src/normalFact"]);
+    expect(Object.keys(idx.entries)).toEqual(["semantic/code-src/normalFact"]);
   }, T);
 
   it("prunes stale aggregated memory md when entries are removed on all devices", async () => {
@@ -477,7 +477,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
       device: "Mac.lan",
       memories: [
         // Only entry x exists — y was removed
-        { id: "semantic/edge-src/x", type: "semantic", project: "edge-src",
+        { id: "semantic/code-src/x", type: "semantic", project: "code-src",
           updatedAt: "2026-06-01", body: "entry x", title: "X" },
       ],
     });
@@ -490,7 +490,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await g.checkout("main");
 
     // Plant the orphan stale file that should be pruned
-    const staleAbs = join(workspace, "memory/semantic/edge-src/y.md");
+    const staleAbs = join(workspace, "memory/semantic/code-src/y.md");
     mkdirSync(dirname(staleAbs), { recursive: true });
     writeFileSync(staleAbs, "# stale entry y — should be pruned\n");
 
@@ -498,21 +498,21 @@ describe("merge-books.mjs (memory aggregation)", () => {
     execSync(`node ${SCRIPT_PATH}`, { cwd: workspace, stdio: "pipe", env: process.env });
 
     // entry x was aggregated
-    expect(existsSync(join(workspace, "memory/semantic/edge-src/x.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/semantic/code-src/x.md"))).toBe(true);
     // stale entry y.md was pruned
     expect(existsSync(staleAbs)).toBe(false);
 
     // Aggregated index reflects current state (only x)
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
-    expect(Object.keys(idx.entries)).toEqual(["semantic/edge-src/x"]);
-    expect(Object.keys(idx.entries)).not.toContain("semantic/edge-src/y");
+    expect(Object.keys(idx.entries)).toEqual(["semantic/code-src/x"]);
+    expect(Object.keys(idx.entries)).not.toContain("semantic/code-src/y");
   }, T);
 
   it("aggregates memory/entities/ + index.entity.json across devices, union by id, latest wins", async () => {
     await setupBranch({
       device: "Mac.lan",
       entities: [
-        { id: "edge-src/Tab", project: "edge-src", updatedAt: "2026-06-01T10:00:00.000Z",
+        { id: "code-src/Tab", project: "code-src", updatedAt: "2026-06-01T10:00:00.000Z",
           title: "Tab", body: "older body for Tab" },
         { id: "_global/Chromium", project: "_global", updatedAt: "2026-06-01T10:00:00.000Z",
           title: "Chromium", body: "browser engine" },
@@ -522,10 +522,10 @@ describe("merge-books.mjs (memory aggregation)", () => {
       device: "Mac-mini",
       entities: [
         // Same id, newer updatedAt — should win
-        { id: "edge-src/Tab", project: "edge-src", updatedAt: "2026-06-09T10:00:00.000Z",
+        { id: "code-src/Tab", project: "code-src", updatedAt: "2026-06-09T10:00:00.000Z",
           title: "Tab", body: "NEWER body for Tab" },
         // Distinct id — should be merged in
-        { id: "edge-src/WebContents", project: "edge-src", updatedAt: "2026-06-09T11:00:00.000Z",
+        { id: "code-src/WebContents", project: "code-src", updatedAt: "2026-06-09T11:00:00.000Z",
           title: "WebContents", body: "web contents entry" },
       ],
     });
@@ -533,21 +533,21 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await runMerge();
 
     // Newer body wins for the shared id
-    const tabMd = readFileSync(join(workspace, "memory/entities/edge-src/Tab.md"), "utf8");
+    const tabMd = readFileSync(join(workspace, "memory/entities/code-src/Tab.md"), "utf8");
     expect(tabMd).toContain("NEWER body for Tab");
 
     // Distinct ids from both devices survive
     expect(existsSync(join(workspace, "memory/entities/_global/Chromium.md"))).toBe(true);
-    expect(existsSync(join(workspace, "memory/entities/edge-src/WebContents.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/entities/code-src/WebContents.md"))).toBe(true);
 
     // index.entity.json written with all three entries
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.entity.json"), "utf8"));
     expect(idx.version).toBe(1);
     expect(Object.keys(idx.entries).sort()).toEqual([
-      "_global/Chromium", "edge-src/Tab", "edge-src/WebContents",
+      "_global/Chromium", "code-src/Tab", "code-src/WebContents",
     ]);
     // originDevice stamped from the winning branch for the collision
-    expect(idx.entries["edge-src/Tab"].originDevice).toBe("Mac-mini");
+    expect(idx.entries["code-src/Tab"].originDevice).toBe("Mac-mini");
     expect(idx.entries["_global/Chromium"].originDevice).toBe("Mac.lan");
   }, T);
 
@@ -556,7 +556,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
       device: "Mac.lan",
       entities: [
         // Safe entry — should be aggregated
-        { id: "edge-src/SafeEntity", project: "edge-src", updatedAt: "2026-06-01T00:00:00.000Z",
+        { id: "code-src/SafeEntity", project: "code-src", updatedAt: "2026-06-01T00:00:00.000Z",
           title: "Safe", body: "safe entity" },
         // Traversal via ..
         { id: "evil/traversal", project: "_global", updatedAt: "2026-06-01T00:00:00.000Z",
@@ -579,7 +579,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await runMerge();
 
     // Safe entry written
-    expect(existsSync(join(workspace, "memory/entities/edge-src/SafeEntity.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/entities/code-src/SafeEntity.md"))).toBe(true);
 
     // Malicious paths must not have been written
     expect(existsSync(join(workspace, "evil.md"))).toBe(false);
@@ -590,7 +590,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
 
     // index.entity.json must contain only the safe entry
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.entity.json"), "utf8"));
-    expect(Object.keys(idx.entries)).toEqual(["edge-src/SafeEntity"]);
+    expect(Object.keys(idx.entries)).toEqual(["code-src/SafeEntity"]);
     expect(Object.keys(idx.entries)).not.toContain("evil/traversal");
     expect(Object.keys(idx.entries)).not.toContain("evil/absolute");
     expect(Object.keys(idx.entries)).not.toContain("evil/wrong-subtree");
@@ -612,14 +612,14 @@ describe("merge-books.mjs (memory aggregation)", () => {
       device: "Win-device",
       entities: [
         {
-          id: "edge-src/x",
-          project: "edge-src",
+          id: "code-src/x",
+          project: "code-src",
           updatedAt: "2026-06-09T10:00:00.000Z",
           title: "X",
           body: "backslash path entity",
-          // Real file is at memory/entities/edge-src/x.md (forward slashes).
+          // Real file is at memory/entities/code-src/x.md (forward slashes).
           // Index entry records the Windows backslash form to trigger the bug.
-          path: "memory\\entities\\edge-src\\x.md",
+          path: "memory\\entities\\code-src\\x.md",
         },
       ],
     });
@@ -627,13 +627,13 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await runMerge();
 
     // The entity MUST have been aggregated at the normalized forward-slash path.
-    const entityMd = join(workspace, "memory/entities/edge-src/x.md");
+    const entityMd = join(workspace, "memory/entities/code-src/x.md");
     expect(existsSync(entityMd)).toBe(true);
     expect(readFileSync(entityMd, "utf8")).toContain("backslash path entity");
 
     // The written index.entity.json must store the normalized (forward-slash) path.
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.entity.json"), "utf8"));
-    expect(idx.entries["edge-src/x"].path).toBe("memory/entities/edge-src/x.md");
+    expect(idx.entries["code-src/x"].path).toBe("memory/entities/code-src/x.md");
   }, T);
 
   it("memory pass: backslash paths in index are normalized so read/write use forward slashes", async () => {
@@ -642,26 +642,26 @@ describe("merge-books.mjs (memory aggregation)", () => {
       device: "Win-device",
       memories: [
         {
-          id: "semantic/edge-src/y",
+          id: "semantic/code-src/y",
           type: "semantic",
-          project: "edge-src",
+          project: "code-src",
           updatedAt: "2026-06-09T10:00:00.000Z",
           title: "Y",
           body: "backslash path memory",
-          // Real file is at memory/semantic/edge-src/y.md; index uses backslashes.
-          path: "memory\\semantic\\edge-src\\y.md",
+          // Real file is at memory/semantic/code-src/y.md; index uses backslashes.
+          path: "memory\\semantic\\code-src\\y.md",
         },
       ],
     });
 
     await runMerge();
 
-    const memMd = join(workspace, "memory/semantic/edge-src/y.md");
+    const memMd = join(workspace, "memory/semantic/code-src/y.md");
     expect(existsSync(memMd)).toBe(true);
     expect(readFileSync(memMd, "utf8")).toContain("backslash path memory");
 
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
-    expect(idx.entries["semantic/edge-src/y"].path).toBe("memory/semantic/edge-src/y.md");
+    expect(idx.entries["semantic/code-src/y"].path).toBe("memory/semantic/code-src/y.md");
   }, T);
 
   it("memory prune does NOT delete entity files; entity prune only touches memory/entities/", async () => {
@@ -672,11 +672,11 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await setupBranch({
       device: "Mac.lan",
       memories: [
-        { id: "semantic/edge-src/memEntry", type: "semantic", project: "edge-src",
+        { id: "semantic/code-src/memEntry", type: "semantic", project: "code-src",
           updatedAt: "2026-06-01T00:00:00.000Z", body: "memory body", title: "mem" },
       ],
       entities: [
-        { id: "edge-src/LiveEntity", project: "edge-src", updatedAt: "2026-06-01T00:00:00.000Z",
+        { id: "code-src/LiveEntity", project: "code-src", updatedAt: "2026-06-01T00:00:00.000Z",
           title: "LiveEntity", body: "live entity" },
       ],
     });
@@ -688,16 +688,16 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await g.addConfig("user.name", "memarium-bot");
     await g.checkout("main");
 
-    const staleEntityAbs = join(workspace, "memory/entities/edge-src/StaleEntity.md");
+    const staleEntityAbs = join(workspace, "memory/entities/code-src/StaleEntity.md");
     mkdirSync(dirname(staleEntityAbs), { recursive: true });
     writeFileSync(staleEntityAbs, "# stale entity — should be pruned\n");
 
     execSync(`node ${SCRIPT_PATH}`, { cwd: workspace, stdio: "pipe", env: process.env });
 
     // Memory entry survived
-    expect(existsSync(join(workspace, "memory/semantic/edge-src/memEntry.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/semantic/code-src/memEntry.md"))).toBe(true);
     // Live entity survived
-    expect(existsSync(join(workspace, "memory/entities/edge-src/LiveEntity.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/entities/code-src/LiveEntity.md"))).toBe(true);
     // Stale entity pruned by entity pass
     expect(existsSync(staleEntityAbs)).toBe(false);
   }, T);
@@ -712,7 +712,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await setupBranch({
       device: "Mac.lan",
       rawSessions: [{
-        sessionId: "sess-no-entity", tool: "claude", project: "edge-src",
+        sessionId: "sess-no-entity", tool: "claude", project: "code-src",
         startedAt: "2026-06-01T00:00:00.000Z", sourceMtimeMs: 1_000_000,
         body: "# raw only\n",
       }],
@@ -726,7 +726,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await g.addConfig("user.name", "memarium-bot");
     await g.checkout("main");
 
-    const prePlantedA = join(workspace, "memory/entities/edge-src/Tab.md");
+    const prePlantedA = join(workspace, "memory/entities/code-src/Tab.md");
     const prePlantedB = join(workspace, "memory/entities/_global/Chromium.md");
     mkdirSync(dirname(prePlantedA), { recursive: true });
     mkdirSync(dirname(prePlantedB), { recursive: true });
@@ -753,7 +753,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await setupBranch({
       device: "Mac.lan",
       rawSessions: [{
-        sessionId: "sess-no-memory", tool: "claude", project: "edge-src",
+        sessionId: "sess-no-memory", tool: "claude", project: "code-src",
         startedAt: "2026-06-01T00:00:00.000Z", sourceMtimeMs: 1_000_000,
         body: "# raw only\n",
       }],
@@ -767,7 +767,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await g.addConfig("user.name", "memarium-bot");
     await g.checkout("main");
 
-    const prePlanted = join(workspace, "memory/semantic/edge-src/oldFact.md");
+    const prePlanted = join(workspace, "memory/semantic/code-src/oldFact.md");
     mkdirSync(dirname(prePlanted), { recursive: true });
     writeFileSync(prePlanted, "# oldFact — pre-existing memory page\n");
 
@@ -785,40 +785,40 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await setupBranch({
       device: "Mac.lan",
       qa: [
-        { id: "qa/edge-src/how-to-build-aaaa1111", project: "edge-src", updatedAt: "2026-06-01T10:00:00.000Z",
+        { id: "qa/code-src/how-to-build-aaaa1111", project: "code-src", updatedAt: "2026-06-01T10:00:00.000Z",
           question: "How do I build?", answerSummary: "old answer", body: "old full body" },
       ],
     });
     await setupBranch({
       device: "Mac-mini",
       qa: [
-        { id: "qa/edge-src/how-to-build-aaaa1111", project: "edge-src", updatedAt: "2026-06-09T10:00:00.000Z",
+        { id: "qa/code-src/how-to-build-aaaa1111", project: "code-src", updatedAt: "2026-06-09T10:00:00.000Z",
           question: "How do I build?", answerSummary: "NEW answer", body: "new full body" },
-        { id: "qa/edge-src/how-to-test-bbbb2222", project: "edge-src", updatedAt: "2026-06-09T11:00:00.000Z",
+        { id: "qa/code-src/how-to-test-bbbb2222", project: "code-src", updatedAt: "2026-06-09T11:00:00.000Z",
           question: "How do I test?", answerSummary: "run vitest", body: "test body" },
       ],
     });
 
     await runMerge();
 
-    const buildMd = readFileSync(join(workspace, "memory/qa/edge-src/how-to-build-aaaa1111.md"), "utf8");
+    const buildMd = readFileSync(join(workspace, "memory/qa/code-src/how-to-build-aaaa1111.md"), "utf8");
     expect(buildMd).toContain("new full body");
-    expect(existsSync(join(workspace, "memory/qa/edge-src/how-to-test-bbbb2222.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/qa/code-src/how-to-test-bbbb2222.md"))).toBe(true);
 
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.qa.json"), "utf8"));
     expect(idx.version).toBe(1);
     expect(Object.keys(idx.entries).sort()).toEqual([
-      "qa/edge-src/how-to-build-aaaa1111", "qa/edge-src/how-to-test-bbbb2222",
+      "qa/code-src/how-to-build-aaaa1111", "qa/code-src/how-to-test-bbbb2222",
     ]);
-    expect(idx.entries["qa/edge-src/how-to-build-aaaa1111"].answerSummary).toBe("NEW answer");
-    expect(idx.entries["qa/edge-src/how-to-build-aaaa1111"].originDevice).toBe("Mac-mini");
+    expect(idx.entries["qa/code-src/how-to-build-aaaa1111"].answerSummary).toBe("NEW answer");
+    expect(idx.entries["qa/code-src/how-to-build-aaaa1111"].originDevice).toBe("Mac-mini");
   }, T);
 
   it("qa prune is SKIPPED when no device has a qa index (no-index-no-prune)", async () => {
     await setupBranch({
       device: "Mac.lan",
       rawSessions: [{
-        sessionId: "sess-no-qa", tool: "claude", project: "edge-src",
+        sessionId: "sess-no-qa", tool: "claude", project: "code-src",
         startedAt: "2026-06-01T00:00:00.000Z", sourceMtimeMs: 1_000_000,
         body: "# raw only\n",
       }],
@@ -830,7 +830,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await g.addConfig("user.name", "memarium-bot");
     await g.checkout("main");
 
-    const prePlanted = join(workspace, "memory/qa/edge-src/pre-existing.md");
+    const prePlanted = join(workspace, "memory/qa/code-src/pre-existing.md");
     mkdirSync(dirname(prePlanted), { recursive: true });
     writeFileSync(prePlanted, "# pre-existing qa page\n");
 
@@ -846,7 +846,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
       device: "Mac.lan",
       qa: [
         // Safe entry — should be aggregated
-        { id: "qa/edge-src/safe-aaaa1111", project: "edge-src", updatedAt: "2026-06-09T10:00:00.000Z",
+        { id: "qa/code-src/safe-aaaa1111", project: "code-src", updatedAt: "2026-06-09T10:00:00.000Z",
           question: "Safe?", answerSummary: "yes", body: "safe body" },
         // Traversal via ..
         { id: "qa/evil/traversal", project: "_global", updatedAt: "2026-06-09T10:00:00.000Z",
@@ -867,7 +867,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await runMerge();
 
     // Safe entry written
-    expect(existsSync(join(workspace, "memory/qa/edge-src/safe-aaaa1111.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/qa/code-src/safe-aaaa1111.md"))).toBe(true);
 
     // Malicious paths must not have been written
     expect(existsSync(join(workspace, "etc/escape.md"))).toBe(false);
@@ -877,7 +877,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
 
     // index.qa.json must contain only the safe entry
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.qa.json"), "utf8"));
-    expect(Object.keys(idx.entries)).toEqual(["qa/edge-src/safe-aaaa1111"]);
+    expect(Object.keys(idx.entries)).toEqual(["qa/code-src/safe-aaaa1111"]);
     expect(Object.keys(idx.entries)).not.toContain("qa/evil/traversal");
     expect(Object.keys(idx.entries)).not.toContain("qa/evil/absolute");
     expect(Object.keys(idx.entries)).not.toContain("qa/evil/wrong-subtree");

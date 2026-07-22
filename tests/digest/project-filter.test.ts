@@ -3,7 +3,7 @@ import { isRealProjectPath } from "../../src/digest/project-filter.js";
 
 describe("isRealProjectPath", () => {
   it("accepts normal project slugs", () => {
-    expect(isRealProjectPath("edge-memvc")).toBe(true);
+    expect(isRealProjectPath("code-demo")).toBe(true);
     expect(isRealProjectPath("chromium-src")).toBe(true);
   });
   it("rejects worktree paths", () => {

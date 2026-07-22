@@ -9,7 +9,7 @@ describe("expandHome", () => {
   });
   it("expands ~/foo to <home>/foo", () => {
     expect(expandHome("~/foo")).toBe(join(homedir(), "foo"));
-    expect(expandHome("~/edge/sub")).toBe(join(homedir(), "edge", "sub"));
+    expect(expandHome("~/code/sub")).toBe(join(homedir(), "code", "sub"));
   });
   it("leaves absolute paths alone", () => {
     expect(expandHome("/tmp/x")).toBe("/tmp/x");

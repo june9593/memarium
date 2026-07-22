@@ -15,7 +15,7 @@ describe("stripVolatileSuffixes", () => {
   it("strips .local (Bonjour / mDNS)", async () => {
     const { stripVolatileSuffixes } = await import("../../src/commands/init-wizard.js");
     expect(stripVolatileSuffixes("Mac-mini-2.local")).toBe("Mac-mini-2");
-    expect(stripVolatileSuffixes("yuedeMacBook-Pro-2.local")).toBe("yuedeMacBook-Pro-2");
+    expect(stripVolatileSuffixes("laptop-MacBook-Pro-2.local")).toBe("laptop-MacBook-Pro-2");
   });
   it("strips .lan", async () => {
     const { stripVolatileSuffixes } = await import("../../src/commands/init-wizard.js");

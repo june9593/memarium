@@ -29,7 +29,7 @@ describe("VSCodeCopilotAdapter", () => {
     expect(s.tool).toBe("copilot");
     expect(s.sessionId).toBe("sess-aaaa1111");
     expect(s.shortId).toBe("sess-aaa");
-    expect(s.project).toBe("edge-memvc");
+    expect(s.project).toBe("code-demo");
     expect(s.nameSlug).toBe("Add-MCP-server-and-list-active-PRs");
     expect(s.messages.length).toBe(3);  // "Thanks" (6 chars) sanitized away
     expect(s.messages[0].role).toBe("user");

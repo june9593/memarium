@@ -66,7 +66,7 @@ describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
   beforeEach(() => {
     repo = mkdtempSync(join(tmpdir(), "memvc-repo-"));
     claudeRoot = mkdtempSync(join(tmpdir(), "memarium-test-claude-fixture-"));
-    const proj = join(claudeRoot, "-Users-me-edge-memvc");
+    const proj = join(claudeRoot, "-Users-me-code-demo");
     mkdirSync(proj, { recursive: true });
     cpSync(join(fixturesDir, "claude", "claude-session.jsonl"), join(proj, "abc12345.jsonl"));
     vscodeRoot = mkdtempSync(join(tmpdir(), "memvc-vscode-"));
@@ -111,7 +111,7 @@ describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
       join(emptyWs, "workspace.json"),
     );
     // kind=0 init + kind=1 patch, no requests = empty shell. Mirrors the
-    // shape we found across 142 such files on Yue's machine.
+    // shape we found across 142 such files on the maintainer's machine.
     const shell = [
       JSON.stringify({ kind: 0, v: { version: 3, sessionId: "empty-shell-cccc", requests: [] } }),
       JSON.stringify({ kind: 1, k: ["responderUsername"], v: "GitHub Copilot" }),
@@ -176,7 +176,7 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     await wg.commit("wipe", ["--allow-empty"]);
 
     claudeRoot = mkdtempSync(join(tmpdir(), "vb-wfsync-claude-"));
-    const proj = join(claudeRoot, "-Users-me-edge-memvc");
+    const proj = join(claudeRoot, "-Users-me-code-demo");
     mkdirSync(proj, { recursive: true });
     cpSync(join(fixturesDir, "claude", "claude-session.jsonl"), join(proj, "abc12345.jsonl"));
     vscodeRoot = mkdtempSync(join(tmpdir(), "vb-wfsync-vscode-"));
@@ -298,7 +298,7 @@ describe("runSync — memory/ staging (0.8.6)", () => {
     await wg.checkoutLocalBranch("memsync-device");
 
     claudeRoot = mkdtempSync(join(tmpdir(), "vb-memsync-claude-"));
-    const proj = join(claudeRoot, "-Users-me-edge-memvc");
+    const proj = join(claudeRoot, "-Users-me-code-demo");
     mkdirSync(proj, { recursive: true });
     cpSync(join(fixturesDir, "claude", "claude-session.jsonl"), join(proj, "abc12345.jsonl"));
     vscodeRoot = mkdtempSync(join(tmpdir(), "vb-memsync-vscode-"));
@@ -313,15 +313,15 @@ describe("runSync — memory/ staging (0.8.6)", () => {
     const { simpleGit } = await import("simple-git");
 
     // Simulate what memory-write produces: a typed-memory file + the memory index.
-    mkdirSync(join(workRepo, "memory", "semantic", "edge-src"), { recursive: true });
+    mkdirSync(join(workRepo, "memory", "semantic", "code-src"), { recursive: true });
     writeFileSync(
-      join(workRepo, "memory", "semantic", "edge-src", "fact.md"),
-      "---\ntype: semantic\nscope: edge-src\nslug: fact\n---\n# fact\nsome remembered fact\n",
+      join(workRepo, "memory", "semantic", "code-src", "fact.md"),
+      "---\ntype: semantic\nscope: code-src\nslug: fact\n---\n# fact\nsome remembered fact\n",
     );
     mkdirSync(join(workRepo, ".memarium"), { recursive: true });
     writeFileSync(
       join(workRepo, ".memarium", "index.memory.json"),
-      JSON.stringify({ version: 1, entries: [{ type: "semantic", scope: "edge-src", slug: "fact", path: "memory/semantic/edge-src/fact.md" }] }),
+      JSON.stringify({ version: 1, entries: [{ type: "semantic", scope: "code-src", slug: "fact", path: "memory/semantic/code-src/fact.md" }] }),
     );
 
     await runSync({
@@ -333,7 +333,7 @@ describe("runSync — memory/ staging (0.8.6)", () => {
 
     // Both files should now be tracked on the bare remote's device branch.
     const tip = await simpleGit(bareRemote).raw(["ls-tree", "-r", "memsync-device"]);
-    expect(tip).toContain("memory/semantic/edge-src/fact.md");
+    expect(tip).toContain("memory/semantic/code-src/fact.md");
     expect(tip).toContain(".memarium/index.memory.json");
   }, 30_000);
 
@@ -426,7 +426,7 @@ describe("runSync — orphan index prune (0.8.4)", () => {
 
   it("removes index entries whose source jsonl is gone AND whose rendered md is gone", async () => {
     // First sync: plant a session, get an index entry written.
-    const proj = join(claudeRoot, "-Users-me-edge-memvc");
+    const proj = join(claudeRoot, "-Users-me-code-demo");
     mkdirSync(proj, { recursive: true });
     cpSync(join(fixturesDir, "claude", "claude-session.jsonl"), join(proj, "abc12345.jsonl"));
     await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
@@ -455,7 +455,7 @@ describe("runSync — orphan index prune (0.8.4)", () => {
     // Common during cross-device aggregation: the source jsonl was on
     // another machine; this clone only has the rendered md. Don't prune
     // those — they're still useful for `resume` consumption.
-    const proj = join(claudeRoot, "-Users-me-edge-memvc");
+    const proj = join(claudeRoot, "-Users-me-code-demo");
     mkdirSync(proj, { recursive: true });
     cpSync(join(fixturesDir, "claude", "claude-session.jsonl"), join(proj, "abc12345.jsonl"));
     await runSync({ repoPath: repo, claudeRoot, vscodeRoot });

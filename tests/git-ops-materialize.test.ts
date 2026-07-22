@@ -91,11 +91,11 @@ describe("adoptPluginDir", () => {
   it("adopts a non-git dir full of plugin data into a git repo on the requested branch", async () => {
     // Simulate the plugin-first dir: memory/ + raw_sessions/ present, no .git
     const target = join(tmp, "session-repo");
-    mkdirSync(join(target, "memory/semantic/edge-memvc"), { recursive: true });
-    mkdirSync(join(target, "raw_sessions/claude/edge-memvc/2026-05-20"), { recursive: true });
-    writeFileSync(join(target, "memory/semantic/edge-memvc/test.md"), "# test\n");
+    mkdirSync(join(target, "memory/semantic/code-demo"), { recursive: true });
+    mkdirSync(join(target, "raw_sessions/claude/code-demo/2026-05-20"), { recursive: true });
+    writeFileSync(join(target, "memory/semantic/code-demo/test.md"), "# test\n");
     writeFileSync(
-      join(target, "raw_sessions/claude/edge-memvc/2026-05-20/sess__abc.jsonl"),
+      join(target, "raw_sessions/claude/code-demo/2026-05-20/sess__abc.jsonl"),
       "{}\n",
     );
 
@@ -106,8 +106,8 @@ describe("adoptPluginDir", () => {
     expect(existsSync(join(target, ".git"))).toBe(true);
 
     // Plugin files preserved
-    expect(existsSync(join(target, "memory/semantic/edge-memvc/test.md"))).toBe(true);
-    expect(existsSync(join(target, "raw_sessions/claude/edge-memvc/2026-05-20/sess__abc.jsonl"))).toBe(true);
+    expect(existsSync(join(target, "memory/semantic/code-demo/test.md"))).toBe(true);
+    expect(existsSync(join(target, "raw_sessions/claude/code-demo/2026-05-20/sess__abc.jsonl"))).toBe(true);
 
     // Correct branch ref (unborn until first commit lands, but HEAD is pointed)
     const sg = simpleGit(target);

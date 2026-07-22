@@ -16,8 +16,8 @@ beforeEach(() => {
     tool: "claude",
     sessionId: "abc12345-cbf6-41f0-ab88-5cb425caba57",
     shortId: "abc12345",
-    project: "edge-memvc",
-    projectRaw: "/Users/me/edge/memvc",
+    project: "code-demo",
+    projectRaw: "/Users/me/code/demo",
     startedAt: "2026-04-17T10:00:00Z",
     endedAt: "2026-04-17T10:30:00Z",
     nameSlug: "Fix-the-auth-bug",
@@ -56,10 +56,10 @@ beforeEach(() => {
 describe("writeSession (0.6 — single .md, frontmatter, content blocks)", () => {
   it("writes only .md (no .raw.json, no .jsonl)", () => {
     const rel = writeSession(repo, session);
-    expect(rel.md).toBe("raw_sessions/claude/edge-memvc/2026-04-17/Fix-the-auth-bug__abc12345.md");
+    expect(rel.md).toBe("raw_sessions/claude/code-demo/2026-04-17/Fix-the-auth-bug__abc12345.md");
     expect(existsSync(join(repo, rel.md))).toBe(true);
     // Negative assertions: legacy artifacts must not exist
-    const base = "raw_sessions/claude/edge-memvc/2026-04-17/Fix-the-auth-bug__abc12345";
+    const base = "raw_sessions/claude/code-demo/2026-04-17/Fix-the-auth-bug__abc12345";
     expect(existsSync(join(repo, `${base}.raw.json`))).toBe(false);
     expect(existsSync(join(repo, `${base}.jsonl`))).toBe(false);
   });
@@ -70,8 +70,8 @@ describe("writeSession (0.6 — single .md, frontmatter, content blocks)", () =>
     expect(body.startsWith("---\n")).toBe(true);
     expect(body).toContain("sessionId: abc12345-cbf6-41f0-ab88-5cb425caba57");
     expect(body).toContain("tool: claude");
-    expect(body).toContain("project: edge-memvc");
-    expect(body).toContain("projectRaw: /Users/me/edge/memvc");
+    expect(body).toContain("project: code-demo");
+    expect(body).toContain("projectRaw: /Users/me/code/demo");
     expect(body).toContain("startedAt: 2026-04-17T10:00:00Z");
     expect(body).toContain("endedAt: 2026-04-17T10:30:00Z");
     expect(body).toContain("displayName: Fix the auth bug");

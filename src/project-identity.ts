@@ -7,7 +7,7 @@ import { projectSlugFromPath } from "./slug.js";
  *
  * Project memory must aggregate + recall correctly across devices, but the
  * same repo can live at a different filesystem path per machine
- * (`~/edge/memvc` vs `~/work/memvc` vs `~/projects/memvc`). The legacy slug =
+ * (`~/code/demo` vs `~/work/memvc` vs `~/projects/memvc`). The legacy slug =
  * `projectSlugFromPath` (last two path segments) splits those into different
  * projects, so raw_sessions folders / memory ids / book all diverge and never
  * aggregate. Coding projects are git-maintained, and a repo's `origin` remote

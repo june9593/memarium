@@ -13,13 +13,13 @@ const entry: IndexEntry = {
   sessionId: "abc12345-cbf6-41f0-ab88-5cb425caba57",
   shortId: "abc12345",
   tool: "claude",
-  project: "edge-src",
-  projectRaw: "/Users/me/edge/src",
+  project: "code-src",
+  projectRaw: "/Users/me/code/src",
   startedAt: "2026-05-15T14:32:00Z",
   endedAt: "2026-05-15T16:18:00Z",
   nameSlug: "trace-leak",
   displayName: "Trace memory leak",
-  relativePath: "raw_sessions/claude/edge-src/2026-05-15/trace-leak__abc12345.md",
+  relativePath: "raw_sessions/claude/code-src/2026-05-15/trace-leak__abc12345.md",
   sourcePath: "/x.jsonl",
   sourceMtimeMs: 1,
   sourceSha256: "x",
@@ -34,9 +34,9 @@ describe("renderResumePrompt", () => {
   });
 
   it("includes session metadata (name, device, dates)", () => {
-    const prompt = renderResumePrompt(entry, "(body)", { device: "yuedeMacBook" });
+    const prompt = renderResumePrompt(entry, "(body)", { device: "laptop-MacBook" });
     expect(prompt).toContain("Trace memory leak");
-    expect(prompt).toContain("yuedeMacBook");
+    expect(prompt).toContain("laptop-MacBook");
     expect(prompt).toContain("2026-05-15T14:32:00Z");
   });
 

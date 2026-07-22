@@ -17,7 +17,7 @@ describe("ClaudeCodeAdapter", () => {
     expect(s.tool).toBe("claude");
     expect(s.sessionId).toBe("abc12345-cbf6-41f0-ab88-5cb425caba57");
     expect(s.shortId).toBe("abc12345");
-    expect(s.project).toBe("edge-memvc");
+    expect(s.project).toBe("code-demo");
     expect(s.nameSlug).toBe("Fix-the-auth-bug-in-login-flow");
     expect(s.displayName).toBe("Fix the auth bug in login flow");
     expect(s.messages.length).toBe(2);  // "thanks" (< 10 chars) sanitized away
@@ -36,9 +36,9 @@ describe("ClaudeCodeAdapter — pollution filter", () => {
 
   it("skips top-level project dirs that look like memarium scratch", async () => {
     // Real-looking project dir
-    const realProj = join(claudeRoot, "-Users-me-edge-memvc");
+    const realProj = join(claudeRoot, "-Users-me-code-demo");
     mkdirSync(realProj, { recursive: true });
-    writeFileSync(join(realProj, "session-1.jsonl"), '{"sessionId":"s1","cwd":"/Users/me/edge/memvc"}\n');
+    writeFileSync(join(realProj, "session-1.jsonl"), '{"sessionId":"s1","cwd":"/Users/me/code/demo"}\n');
 
     // Polluted dirs — different shapes
     const polluted1 = join(claudeRoot, "-private-var-folders-zm-x-T-memarium-claude-Abc");
@@ -69,7 +69,7 @@ describe("ClaudeCodeAdapter — pollution filter", () => {
       sourcePaths.push(ds.sourcePath);
     }
     // Real session yielded.
-    expect(sourcePaths.some((p) => p.includes("-Users-me-edge-memvc"))).toBe(true);
+    expect(sourcePaths.some((p) => p.includes("-Users-me-code-demo"))).toBe(true);
     // Legit tmp-rooted developer work also yielded — we only filter memarium's own scratch.
     expect(sourcePaths.some((p) => p.includes("-tmp-experiment"))).toBe(true);
     // No memarium-claude scratch yielded — assertion is on discover() itself,
@@ -136,9 +136,9 @@ describe("sanitizeMessageText", () => {
   });
 
   it("strips <command-message> / <command-name> / <command-args> blocks", () => {
-    const out = sanitizeMessageText("<command-message>create-colleague</command-message><command-name>/create-colleague</command-name><command-args>Alias: jiaming</command-args>real instructions");
+    const out = sanitizeMessageText("<command-message>create-colleague</command-message><command-name>/create-colleague</command-name><command-args>Alias: teammate</command-args>real instructions");
     expect(out).not.toContain("create-colleague");
-    expect(out).not.toContain("jiaming");
+    expect(out).not.toContain("teammate");
     expect(out).toContain("real instructions");
   });
 
@@ -229,7 +229,7 @@ describe("extractParts via ClaudeCodeAdapter — content blocks", () => {
           content: [
             { type: "thinking", thinking: "Let me look at the auth code first" },
             { type: "text", text: "Let me read the auth file." },
-            { type: "tool_use", id: "tu1", name: "Read", input: { file_path: "/Users/me/edge/auth.ts" } },
+            { type: "tool_use", id: "tu1", name: "Read", input: { file_path: "/Users/me/code/auth.ts" } },
           ],
         },
       }),
@@ -268,7 +268,7 @@ describe("extractParts via ClaudeCodeAdapter — content blocks", () => {
     expect(asst.contentBlocks).toEqual([
       { type: "thinking", thinking: "Let me look at the auth code first" },
       { type: "text", text: "Let me read the auth file." },
-      { type: "tool_use", name: "Read", input: { file_path: "/Users/me/edge/auth.ts" }, id: "tu1" },
+      { type: "tool_use", name: "Read", input: { file_path: "/Users/me/code/auth.ts" }, id: "tu1" },
     ]);
 
     // User tool-result message: tool_result block preserved

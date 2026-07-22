@@ -35,7 +35,7 @@ export class VSCodeCopilotAdapter implements SourceAdapter {
       // older event-stream format). Letting both through produces twin .md
       // files at different paths because the two formats extract different
       // first-user prompts and different startedAt timestamps — same
-      // sessionId, two filenames, only one of them indexed (audit on Yue's
+      // sessionId, two filenames, only one of them indexed (audit on the maintainer's
       // 2026-05-23 sync surfaced 83 orphan files repo-wide). Prefer
       // chatSessions/ as the authoritative source; transcripts/ runs only
       // as a fallback when chatSessions/ doesn't have the id.
