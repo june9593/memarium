@@ -303,7 +303,7 @@ function readPathCliVersion(): string | null {
  * (~/.nvm/versions/node/<v>/lib/node_modules/) at the same time. `memarium
  * upgrade` installs to whichever npm is on PATH first, but the shell
  * resolves `memarium` by PATH order — so users routinely upgrade one
- * install while continuing to run the other. Bit Yue twice on 2026-05-25.
+ * install while continuing to run the other. Bit the maintainer twice on 2026-05-25.
  */
 function listAllPathInstalls(): { path: string; version: string | null }[] {
   const pathDirs = (process.env.PATH ?? "").split(":").filter(Boolean);

@@ -34,7 +34,7 @@ export interface NormalizedSession {
   tool: Tool;
   sessionId: string;        // source-native id (e.g. Claude uuid)
   shortId: string;          // first 8 chars of sessionId
-  project: string;          // human-readable project slug (e.g. "edge-memvc")
+  project: string;          // human-readable project slug (e.g. "code-demo")
   projectRaw: string;       // original path or workspace hash
   startedAt: string;        // ISO 8601 of first message
   endedAt: string;          // ISO 8601 of last message

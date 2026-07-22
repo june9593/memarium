@@ -33,7 +33,7 @@ describe("deriveSlug", () => {
 
 describe("projectSlugFromPath", () => {
   it("extracts basename of cwd", () => {
-    expect(projectSlugFromPath("/Users/me/edge/memvc")).toBe("edge-memvc");
+    expect(projectSlugFromPath("/Users/me/code/demo")).toBe("code-demo");
     expect(projectSlugFromPath("/Users/me")).toBe("home");
     expect(projectSlugFromPath("/")).toBe("root");
   });

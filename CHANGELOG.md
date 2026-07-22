@@ -99,7 +99,7 @@ compares local refs only, no network. Only runs when a remote is configured.
 ### Project identity from the git remote (P0a)
 
 The project a session/memory belongs to was keyed on `projectSlugFromPath` —
-the **last two path segments** of the cwd (`~/edge/memvc` → `edge-memvc`). The
+the **last two path segments** of the cwd (`~/code/demo` → `code-demo`). The
 same repo at a different path per machine (`~/work/memvc`, `~/projects/memvc`)
 split into different projects, so raw_sessions folders, memory ids, and book
 never aggregated across devices. This is the foundation for cross-device
@@ -213,7 +213,7 @@ npm prefixes (Homebrew's `/opt/homebrew/lib/node_modules/` AND nvm's
 `~/.nvm/versions/node/<v>/lib/node_modules/`). `vibebook upgrade` lands
 in whichever `npm` runs first, but the shell resolves `vibebook` by
 PATH order — so users routinely upgrade one install while continuing
-to run the other. Bit Yue twice on 2026-05-25 alone.
+to run the other. Bit the maintainer twice on 2026-05-25 alone.
 
 `doctor` now walks every `PATH` directory, lists every `vibebook`
 binary found with its `--version`, and marks the first (= what the
@@ -238,7 +238,7 @@ them.
 ### Tests
 
 - 2 new sync cases: orphan-prunes-when-both-gone, retain-when-md-still-exists
-- 248/248 vitest passing (was 246 in 0.8.3; +2 new). No new doctor test — that one runs against real PATH and is better validated by Yue's eyeball.
+- 248/248 vitest passing (was 246 in 0.8.3; +2 new). No new doctor test — that one runs against real PATH and is better validated by the maintainer's eyeball.
 
 ## 0.8.3 — 2026-05-25
 
@@ -251,7 +251,7 @@ synced raw_sessions but no one has run `/vibebook` digest yet,
 **`raw_sessions/` + `.vibebook/index.aggregated.json` were never
 written to main**.
 
-Symptom (caught 2026-05-25 after Yue's two-device fresh sync): CI ran
+Symptom (caught 2026-05-25 after the maintainer's two-device fresh sync): CI ran
 4 times all `success`, but main's tree only had `.github/`, `scripts/`,
 and `.gitignore`. Logs showed `no device branch had a v2 BookIndex —
 nothing to aggregate`. The cross-device resume overlay had nothing
@@ -425,7 +425,7 @@ No flags, no manual setup needed beyond `npm install -g vibebook@0.8.0`.
 
 ## 0.7.1 — 2026-05-23
 
-Audit on Yue's first 0.7.0 sync surfaced 83 orphan .md files and 142
+Audit on the maintainer's first 0.7.0 sync surfaced 83 orphan .md files and 142
 empty-shell .md files. Both are Copilot-specific extractor bugs.
 
 ### Bug fixes
@@ -439,7 +439,7 @@ empty-shell .md files. Both are Copilot-specific extractor bugs.
   timestamps for the same conversation, so the writer emitted two .md
   files at different paths. The index keys by sessionId so only the
   last-processed write got registered — the other became an orphan.
-  77 distinct shortIds were duplicated in Yue's repo (~85 orphan files).
+  77 distinct shortIds were duplicated in the maintainer's repo (~85 orphan files).
 
   Fix: per workspace, when both source formats have the same sessionId,
   yield ONLY `chatSessions/` (the authoritative log we just hardened).
@@ -452,7 +452,7 @@ empty-shell .md files. Both are Copilot-specific extractor bugs.
   `kind=0` init + a `kind=1` metadata patch with no actual `requests`.
   Pre-0.7.1 sync wrote one `1970-01-01/untitled__<id>.md` per shell
   (epoch fallback because `startedAt` was empty). 142 such files
-  appeared across 43 different project dirs on Yue's machine.
+  appeared across 43 different project dirs on the maintainer's machine.
 
   Fix: skip writes when `session.messages.length === 0` in `runSync`.
   Generalizes across sources, not just Copilot.
@@ -498,7 +498,7 @@ Every newly-rendered `raw_sessions/*.md` now embeds, at the top:
   line of that turn's heading in the rendered md. Tool-result-only turns
   are omitted.
 
-Real-world numbers on Yue's 4ec14999 session: 9.14MB → 9.81MB (~700KB
+Real-world numbers on the maintainer's 4ec14999 session: 9.14MB → 9.81MB (~700KB
 header), 4900 user / 6941 assistant turns, 100 commits captured, 1966
 TOC rows. Every sampled TOC offset lands on the right `## User` or
 `## Assistant` heading.
@@ -548,7 +548,7 @@ size, so most sessions stay in the inline tier.
   injected `/vibebook` skill template, producing files like
   `Step-0-—-Detect-the-mode-DO-THIS-FIRST-Before-anything-else-__a18dc3af.md`
   with no real user prompts in the body. Real-world hit count on
-  Yue's machine: ≥1 session per project that runs `/vibebook` from a
+  the maintainer's machine: ≥1 session per project that runs `/vibebook` from a
   short opener.
 
   After the fix: such sessions still get written (their tool blocks
@@ -590,7 +590,7 @@ size, so most sessions stay in the inline tier.
 
 ## 0.6.1 — 2026-05-21
 
-Fast follow-up to 0.6.0 covering the gaps exposed by Yue's fresh-init
+Fast follow-up to 0.6.0 covering the gaps exposed by the maintainer's fresh-init
 test on mini2: a real bug that blocked auto workflow install, plus
 overdue wizard polish.
 

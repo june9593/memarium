@@ -13,7 +13,7 @@ sessions, plus the read-side commands (`resume`, `list-sessions`, `show`).
 No LLM calls — pure I/O.
 
 The **digest + recall** half lives in the separate
-`june9593/memarium-plugin` repo (`~/edge/memarium-plugin/`), installed
+`june9593/memarium-plugin` repo (`~/code/memarium-plugin/`), installed
 into Claude Code via `/plugin install memarium`. That's where the typed
 memory (episodes + semantic/procedural/core facts, entities, qa), the
 /memarium write skill, and the /memarium-recall read skill live.
@@ -115,7 +115,7 @@ There is **no `.claude-plugin/` directory** in this repo anymore (moved to
 memarium-plugin since the 0.5 slim split) and **no `scripts/sync-plugin-version.mjs`**.
 Just bump `package.json` and tag. No manifests to mirror.
 
-**Then stop.** `npm publish` is a manual step Yue runs himself (OTP
+**Then stop.** `npm publish` is a manual step the maintainer runs himself (OTP
 gate). Don't suggest "now do `npm publish`" — just say the tag is
 ready.
 
@@ -149,7 +149,7 @@ Bump rules:
   0.13.0). Don't re-add a book-site builder to this repo; `marketing-site/`
   (the project landing page) is unrelated and stays.
 - Don't add `docs/` back to git — it was untracked on 2026-04-29 to
-  open-source the repo. `docs/superpowers/roadmap.md` is Yue's local
+  open-source the repo. `docs/superpowers/roadmap.md` is the maintainer's local
   working notes; never `git add docs/`.
 - **Multiple memarium installs gotcha**: a user can have `memarium` on
   PATH from both Homebrew's npm prefix (`/opt/homebrew/bin/memarium`)
@@ -163,8 +163,8 @@ Bump rules:
 ## Where to find more
 
 - Public docs: `README.md` (rendered on github.com/june9593/memarium)
-- Plugin docs: `~/edge/memarium-plugin/README.md` + its `skills/memarium/SKILL.md`
-- Yue's working roadmap: `docs/superpowers/roadmap.md` (gitignored;
+- Plugin docs: `~/code/memarium-plugin/README.md` + its `skills/memarium/SKILL.md`
+- the maintainer's working roadmap: `docs/superpowers/roadmap.md` (gitignored;
   audit it periodically — most "open" items there have actually
   shipped, the roadmap just lags behind)
 - Design specs: `docs/superpowers/specs/` (also gitignored)

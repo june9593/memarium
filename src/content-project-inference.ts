@@ -10,7 +10,7 @@ import { cachedProjectSlug } from "./project-identity.js";
  * Claude Code groups jsonl files by cwd at session-start. When the user
  * `cd`s into a different project mid-session, or runs `claude` in the wrong
  * directory by accident (e.g. opens it in `chromium-src` but spends the
- * whole session editing files in `edge-memarium`), the session is filed
+ * whole session editing files in `code-demo`), the session is filed
  * under the wrong project. The user's intent — "this conversation is about
  * memarium" — disagrees with the cwd label.
  *
@@ -43,7 +43,7 @@ export interface InferenceResult {
 /**
  * Decode a Claude project-dir name back to its filesystem path prefix.
  *
- *   "-Users-me-edge-memvc"  →  "/Users/me/edge/memvc"
+ *   "-Users-me-code-demo"  →  "/Users/me/code/demo"
  *
  * Note this is one-way and lossy — Claude itself uses the same encoding so
  * actual hyphens in path components become indistinguishable from `/`.
@@ -58,7 +58,7 @@ function decodeProjectDirName(name: string): string {
 /**
  * Build the list of "known project roots" by listing `~/.claude/projects/`.
  * Returns just the `{ path }`s, sorted longest-prefix-first so a path like
- * `/Users/u/edge/memvc/.claude/worktrees/foo` matches the worktree subdir
+ * `/Users/u/code/demo/.claude/worktrees/foo` matches the worktree subdir
  * before falling back to the parent project. The (remote-based) slug is
  * resolved lazily — only for the root a path actually matches — so listing
  * roots never spawns `git` for projects the session didn't touch (#41 review).
@@ -82,8 +82,8 @@ export function listKnownProjectRoots(
  * deriving a slug from the path's parent component. The slug is the stable
  * remote-based identity (cached); a path slug only when there's no git remote.
  *
- *   "/Users/me/edge/memvc/src/foo.ts"  →  "github.com-..."/"edge-memvc"  (matched)
- *   "/Users/me/edge/random/file.ts"    →  slug from parent (no root match)
+ *   "/Users/me/code/demo/src/foo.ts"  →  "github.com-..."/"code-demo"  (matched)
+ *   "/Users/me/code/random/file.ts"    →  slug from parent (no root match)
  *   "/etc/hosts"                       →  null (non-project)
  */
 export function pathToProjectSlug(

@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 
 /**
  * Expand a leading `~` to the user's home dir. (Shell expansion doesn't
- * happen for prompt input — `~/edge` would be taken literally otherwise.)
+ * happen for prompt input — `~/code` would be taken literally otherwise.)
  */
 export function expandHome(p: string): string {
   if (p === "~") return homedir();
