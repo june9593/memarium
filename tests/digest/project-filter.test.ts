@@ -4,7 +4,7 @@ import { isRealProjectPath } from "../../src/digest/project-filter.js";
 describe("isRealProjectPath", () => {
   it("accepts normal project slugs", () => {
     expect(isRealProjectPath("code-demo")).toBe(true);
-    expect(isRealProjectPath("chromium-src")).toBe(true);
+    expect(isRealProjectPath("acme-web")).toBe(true);
   });
   it("rejects worktree paths", () => {
     expect(isRealProjectPath(".worktrees-38e8767b-6a62-4f6f-b062-96296496fee0")).toBe(false);

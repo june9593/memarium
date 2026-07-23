@@ -9,7 +9,7 @@ import { cachedProjectSlug } from "./project-identity.js";
  *
  * Claude Code groups jsonl files by cwd at session-start. When the user
  * `cd`s into a different project mid-session, or runs `claude` in the wrong
- * directory by accident (e.g. opens it in `chromium-src` but spends the
+ * directory by accident (e.g. opens it in `acme-web` but spends the
  * whole session editing files in `code-demo`), the session is filed
  * under the wrong project. The user's intent — "this conversation is about
  * memarium" — disagrees with the cwd label.
@@ -21,8 +21,8 @@ import { cachedProjectSlug } from "./project-identity.js";
  * cwd-derived project with the inferred one.
  *
  * We DO NOT scan message text for paths — that produces too many false
- * positives (e.g. "the chromium codebase has a similar pattern in
- * /chromium/src/foo.cc" mentioned as reference, not as work). Tool-use
+ * positives (e.g. "the acme-web codebase has a similar pattern in
+ * /acme/web/foo.ts" mentioned as reference, not as work). Tool-use
  * inputs reflect actual edits/reads, which is the signal we want.
  */
 
