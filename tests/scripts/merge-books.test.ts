@@ -281,7 +281,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
       device: "Mac-mini",
       rawSessions: [
         {
-          sessionId: "sess-mini-bbbb", tool: "copilot", project: "chromium",
+          sessionId: "sess-mini-bbbb", tool: "copilot", project: "acme-web",
           startedAt: "2026-04-22T09:00:00.000Z", sourceMtimeMs: 2_000_000,
           body: "# md from Mac-mini (sess-mini)\n",
         },
@@ -296,7 +296,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await runMerge();
 
     const macMd = join(workspace, "raw_sessions/claude/code-src/2026-04-20/seed__sess-mac.md");
-    const miniMd = join(workspace, "raw_sessions/copilot/chromium/2026-04-22/seed__sess-min.md");
+    const miniMd = join(workspace, "raw_sessions/copilot/acme-web/2026-04-22/seed__sess-min.md");
     const sharedMd = join(workspace, "raw_sessions/claude/code-src/2026-04-20/seed__sess-sha.md");
     expect(existsSync(macMd)).toBe(true);
     expect(existsSync(miniMd)).toBe(true);
@@ -514,8 +514,8 @@ describe("merge-books.mjs (memory aggregation)", () => {
       entities: [
         { id: "code-src/Tab", project: "code-src", updatedAt: "2026-06-01T10:00:00.000Z",
           title: "Tab", body: "older body for Tab" },
-        { id: "_global/Chromium", project: "_global", updatedAt: "2026-06-01T10:00:00.000Z",
-          title: "Chromium", body: "browser engine" },
+        { id: "_global/Acme", project: "_global", updatedAt: "2026-06-01T10:00:00.000Z",
+          title: "Acme", body: "web framework" },
       ],
     });
     await setupBranch({
@@ -525,8 +525,8 @@ describe("merge-books.mjs (memory aggregation)", () => {
         { id: "code-src/Tab", project: "code-src", updatedAt: "2026-06-09T10:00:00.000Z",
           title: "Tab", body: "NEWER body for Tab" },
         // Distinct id — should be merged in
-        { id: "code-src/WebContents", project: "code-src", updatedAt: "2026-06-09T11:00:00.000Z",
-          title: "WebContents", body: "web contents entry" },
+        { id: "code-src/Widget", project: "code-src", updatedAt: "2026-06-09T11:00:00.000Z",
+          title: "Widget", body: "web contents entry" },
       ],
     });
 
@@ -537,18 +537,18 @@ describe("merge-books.mjs (memory aggregation)", () => {
     expect(tabMd).toContain("NEWER body for Tab");
 
     // Distinct ids from both devices survive
-    expect(existsSync(join(workspace, "memory/entities/_global/Chromium.md"))).toBe(true);
-    expect(existsSync(join(workspace, "memory/entities/code-src/WebContents.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/entities/_global/Acme.md"))).toBe(true);
+    expect(existsSync(join(workspace, "memory/entities/code-src/Widget.md"))).toBe(true);
 
     // index.entity.json written with all three entries
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.entity.json"), "utf8"));
     expect(idx.version).toBe(1);
     expect(Object.keys(idx.entries).sort()).toEqual([
-      "_global/Chromium", "code-src/Tab", "code-src/WebContents",
+      "_global/Acme", "code-src/Tab", "code-src/Widget",
     ]);
     // originDevice stamped from the winning branch for the collision
     expect(idx.entries["code-src/Tab"].originDevice).toBe("Mac-mini");
-    expect(idx.entries["_global/Chromium"].originDevice).toBe("Mac.lan");
+    expect(idx.entries["_global/Acme"].originDevice).toBe("Mac.lan");
   }, T);
 
   it("skips entity entries with unsafe paths (path traversal guard)", async () => {
@@ -727,11 +727,11 @@ describe("merge-books.mjs (memory aggregation)", () => {
     await g.checkout("main");
 
     const prePlantedA = join(workspace, "memory/entities/code-src/Tab.md");
-    const prePlantedB = join(workspace, "memory/entities/_global/Chromium.md");
+    const prePlantedB = join(workspace, "memory/entities/_global/Acme.md");
     mkdirSync(dirname(prePlantedA), { recursive: true });
     mkdirSync(dirname(prePlantedB), { recursive: true });
     writeFileSync(prePlantedA, "# Tab — pre-existing entity page\n");
-    writeFileSync(prePlantedB, "# Chromium — pre-existing entity page\n");
+    writeFileSync(prePlantedB, "# Acme — pre-existing entity page\n");
 
     // Run the merge (no entity index on any device branch)
     execSync(`node ${SCRIPT_PATH}`, { cwd: workspace, stdio: "pipe", env: process.env });
@@ -740,7 +740,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     expect(existsSync(prePlantedA)).toBe(true);
     expect(readFileSync(prePlantedA, "utf8")).toContain("Tab — pre-existing");
     expect(existsSync(prePlantedB)).toBe(true);
-    expect(readFileSync(prePlantedB, "utf8")).toContain("Chromium — pre-existing");
+    expect(readFileSync(prePlantedB, "utf8")).toContain("Acme — pre-existing");
 
     // index.entity.json must NOT have been written (anyEntityIndexSeen is false)
     expect(existsSync(join(workspace, ".memarium/index.entity.json"))).toBe(false);

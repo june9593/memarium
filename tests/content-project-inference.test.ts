@@ -10,7 +10,7 @@ import type { SessionMessage } from "../src/types.js";
 
 const KNOWN_ROOTS = [
   { path: "/Users/u/code/demo" },
-  { path: "/Users/u/chromium/src" },
+  { path: "/Users/u/acme/web" },
 ].sort((a, b) => b.path.length - a.path.length);
 
 function toolUseMsg(blocks: { name: string; input: Record<string, unknown> }[]): SessionMessage {
@@ -93,10 +93,10 @@ describe("extractPathsFromMessages", () => {
 
 describe("inferProjectFromContent", () => {
   it("returns inferred project when one project dominates ≥ MIN_CONFIDENCE", () => {
-    // 8 memarium + 2 chromium = 80% memarium
+    // 8 memarium + 2 acme-web = 80% memarium
     const blocks = [
       ...Array.from({ length: 8 }, (_, i) => ({ name: "Read", input: { file_path: `/Users/u/code/demo/v${i}.ts` } })),
-      ...Array.from({ length: 2 }, (_, i) => ({ name: "Read", input: { file_path: `/Users/u/chromium/src/c${i}.cc` } })),
+      ...Array.from({ length: 2 }, (_, i) => ({ name: "Read", input: { file_path: `/Users/u/acme/web/c${i}.ts` } })),
     ];
     const msgs = blocks.map((b) => toolUseMsg([b]));
     const r = inferProjectFromContent(msgs, KNOWN_ROOTS);
@@ -106,10 +106,10 @@ describe("inferProjectFromContent", () => {
   });
 
   it("returns null when no project meets confidence threshold", () => {
-    // 5 memarium + 5 chromium = 50/50
+    // 5 memarium + 5 acme-web = 50/50
     const blocks = [
       ...Array.from({ length: 5 }, (_, i) => ({ name: "Read", input: { file_path: `/Users/u/code/demo/v${i}.ts` } })),
-      ...Array.from({ length: 5 }, (_, i) => ({ name: "Read", input: { file_path: `/Users/u/chromium/src/c${i}.cc` } })),
+      ...Array.from({ length: 5 }, (_, i) => ({ name: "Read", input: { file_path: `/Users/u/acme/web/c${i}.ts` } })),
     ];
     const msgs = blocks.map((b) => toolUseMsg([b]));
     const r = inferProjectFromContent(msgs, KNOWN_ROOTS);
@@ -131,10 +131,10 @@ describe("inferProjectFromContent", () => {
   });
 
   it("respects MIN_CONFIDENCE exactly at boundary", () => {
-    // 7 memarium + 3 chromium = 70% — should pass
+    // 7 memarium + 3 acme-web = 70% — should pass
     const blocks = [
       ...Array.from({ length: 7 }, (_, i) => ({ name: "Read", input: { file_path: `/Users/u/code/demo/v${i}.ts` } })),
-      ...Array.from({ length: 3 }, (_, i) => ({ name: "Read", input: { file_path: `/Users/u/chromium/src/c${i}.cc` } })),
+      ...Array.from({ length: 3 }, (_, i) => ({ name: "Read", input: { file_path: `/Users/u/acme/web/c${i}.ts` } })),
     ];
     const msgs = blocks.map((b) => toolUseMsg([b]));
     const r = inferProjectFromContent(msgs, KNOWN_ROOTS);

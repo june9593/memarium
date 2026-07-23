@@ -668,7 +668,7 @@ uses standard `claude [prompt]` public CLI.
 Large `tool_result` / `tool_use.input` blocks (>20 KB) are truncated in
 the rendered `.md` to first 30 + last 10 lines (or first 4000 + last
 1000 chars for single-line blocks), with a footer noting size. This
-keeps long Chromium / Edge sessions (gigabytes of file reads) under
+keeps large multi-file sessions (gigabytes of file reads) under
 GitHub's 100 MB push limit. Override with `VIBEBOOK_FULL_TOOL_RESULTS=1`.
 
 ### Migration
