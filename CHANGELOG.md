@@ -767,7 +767,7 @@ in 0.5.0 / 0.5.1. All fixed here. No schema changes.
 
 - **Stable device branch name.** `os.hostname()` on macOS drifts across
   networks (mDNS in home wifi → `Mac-mini-2.local`, corp DHCP → something
-  like `MIS-EV2-BB1.surfacescenarios.org`, iPhone hotspot → another),
+  like `CORP-DHCP-7X2.corp.example.com`, iPhone hotspot → another),
   causing sync to push to a new branch each time. Two fixes:
   - **Init wizard Q8**: explicitly ask for a stable device name and warn
     when the hostname default looks volatile.

@@ -97,8 +97,8 @@ export async function runWizard(): Promise<WizardAnswers> {
 }
 
 /** Strip common macOS-volatile suffixes from a hostname-derived branch name.
- *  `Mac-mini-2.local` → `Mac-mini-2`; `MIS-EV2-BB1.surfacescenarios.org` →
- *  `MIS-EV2-BB1` (the FQDN suffix is irrelevant for memarium's purposes; the
+ *  `Mac-mini-2.local` → `Mac-mini-2`; `CORP-DHCP-7X2.corp.example.com` →
+ *  `CORP-DHCP-7X2` (the FQDN suffix is irrelevant for memarium's purposes; the
  *  identifying part of a personal machine name is the bare hostname). */
 export function stripVolatileSuffixes(name: string): string {
   return name
