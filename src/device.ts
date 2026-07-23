@@ -33,7 +33,7 @@ export function deviceBranchFromHostname(): string {
  * patterns we've actually seen drift in dogfood:
  *   - ends in `.local`               (Bonjour / mDNS, changes when DHCP renames host)
  *   - matches a fully-qualified DNS name (contains a `.` followed by 2+
- *     letters as a TLD) — e.g. `MIS-EV2-BB1.surfacescenarios.org`,
+ *     letters as a TLD) — e.g. `CORP-DHCP-7X2.corp.example.com`,
  *     `host42.corp.example.com`. These come from corp DHCP and rotate.
  */
 export function isStableDeviceName(name: string): boolean {

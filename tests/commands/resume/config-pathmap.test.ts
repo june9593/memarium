@@ -30,39 +30,39 @@ describe("setMapPath", () => {
 
   it("adds a single mapping when pathMap is empty", async () => {
     const { setMapPath } = await import("../../../src/commands/resume/config-pathmap.js");
-    setMapPath("/Users/yueA=/Users/yueB");
+    setMapPath("/Users/alice=/Users/bob");
     const cfg = JSON.parse(readFileSync(join(fakeHome, ".memarium/config.json"), "utf8"));
-    expect(cfg.pathMap).toEqual({ "/Users/yueA": "/Users/yueB" });
+    expect(cfg.pathMap).toEqual({ "/Users/alice": "/Users/bob" });
   });
 
   it("appends to existing pathMap", async () => {
     const { setMapPath } = await import("../../../src/commands/resume/config-pathmap.js");
-    setMapPath("/Users/yueA=/Users/yueB");
-    setMapPath("/Users/yueC=/Users/yueB");
+    setMapPath("/Users/alice=/Users/bob");
+    setMapPath("/Users/carol=/Users/bob");
     const cfg = JSON.parse(readFileSync(join(fakeHome, ".memarium/config.json"), "utf8"));
     expect(cfg.pathMap).toEqual({
-      "/Users/yueA": "/Users/yueB",
-      "/Users/yueC": "/Users/yueB",
+      "/Users/alice": "/Users/bob",
+      "/Users/carol": "/Users/bob",
     });
   });
 
   it("overwrites when source prefix already exists", async () => {
     const { setMapPath } = await import("../../../src/commands/resume/config-pathmap.js");
-    setMapPath("/Users/yueA=/Users/yueB");
-    setMapPath("/Users/yueA=/Users/yueC");
+    setMapPath("/Users/alice=/Users/bob");
+    setMapPath("/Users/alice=/Users/carol");
     const cfg = JSON.parse(readFileSync(join(fakeHome, ".memarium/config.json"), "utf8"));
-    expect(cfg.pathMap).toEqual({ "/Users/yueA": "/Users/yueC" });
+    expect(cfg.pathMap).toEqual({ "/Users/alice": "/Users/carol" });
   });
 
   it("throws on malformed input (no =)", async () => {
     const { setMapPath } = await import("../../../src/commands/resume/config-pathmap.js");
-    expect(() => setMapPath("/Users/yueA")).toThrow(/expected.*=.*/i);
+    expect(() => setMapPath("/Users/alice")).toThrow(/expected.*=.*/i);
   });
 
   it("throws when from or to is empty", async () => {
     const { setMapPath } = await import("../../../src/commands/resume/config-pathmap.js");
-    expect(() => setMapPath("=/Users/yueB")).toThrow(/empty/i);
-    expect(() => setMapPath("/Users/yueA=")).toThrow(/empty/i);
+    expect(() => setMapPath("=/Users/bob")).toThrow(/empty/i);
+    expect(() => setMapPath("/Users/alice=")).toThrow(/empty/i);
   });
 });
 

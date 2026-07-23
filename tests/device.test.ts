@@ -46,12 +46,12 @@ describe("isStableDeviceName", () => {
     expect(isStableDeviceName("laptop-MacBook-Pro-2.local")).toBe(false);
   });
   it("flags corp DHCP-style ALL-CAPS dotted names as drift-prone", () => {
-    expect(isStableDeviceName("MIS-EV2-BB1.surfacescenarios.org")).toBe(false);
+    expect(isStableDeviceName("CORP-DHCP-7X2.corp.example.com")).toBe(false);
   });
   it("accepts physical-label style names as stable", () => {
     expect(isStableDeviceName("mini2")).toBe(true);
     expect(isStableDeviceName("work-laptop")).toBe(true);
-    expect(isStableDeviceName("yue-mini2")).toBe(true);
+    expect(isStableDeviceName("alex-mini2")).toBe(true);
   });
   it("accepts mixed-case names without a dot as stable", () => {
     expect(isStableDeviceName("laptop-MacBook-Pro-2")).toBe(true);

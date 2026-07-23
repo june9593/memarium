@@ -26,7 +26,7 @@ describe("resumeCmd (0.6 — context-as-prompt)", () => {
         threadingConcurrency: 4,
         threadingMaxAttempts: 3,
         digestEnabled: true,
-        pathMap: { "/Users/yueA": fakeHome },
+        pathMap: { "/Users/alice": fakeHome },
       }),
     );
     // Plant a session md in spool
@@ -44,7 +44,7 @@ describe("resumeCmd (0.6 — context-as-prompt)", () => {
             shortId: "abc12345",
             tool: "claude",
             project: "my-app",
-            projectRaw: "/Users/yueA/code/my-app",
+            projectRaw: "/Users/alice/code/my-app",
             startedAt: "2026-05-10T00:00:00Z",
             endedAt: "2026-05-10T01:00:00Z",
             nameSlug: "fix",

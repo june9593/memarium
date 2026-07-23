@@ -767,7 +767,7 @@ in 0.5.0 / 0.5.1. All fixed here. No schema changes.
 
 - **Stable device branch name.** `os.hostname()` on macOS drifts across
   networks (mDNS in home wifi → `Mac-mini-2.local`, corp DHCP → something
-  like `MIS-EV2-BB1.surfacescenarios.org`, iPhone hotspot → another),
+  like `CORP-DHCP-7X2.corp.example.com`, iPhone hotspot → another),
   causing sync to push to a new branch each time. Two fixes:
   - **Init wizard Q8**: explicitly ask for a stable device name and warn
     when the hostname default looks volatile.
@@ -867,7 +867,7 @@ Three new commands:
 
 - `vibebook list-sessions [--project --since --device]` — find resumable sessions across all devices in the spool.
 - `vibebook resume <sessionId>` — copy a spool session's jsonl into `~/.claude/projects/<encoded-cwd>/<id>.jsonl` and print the `cd <project> && claude --resume <id>` command to run.
-- `vibebook config --map-path FROM=TO` — register a cross-device path translation (e.g. `/Users/yueA=/Users/yueB`) used by `resume` to rewrite jsonl paths.
+- `vibebook config --map-path FROM=TO` — register a cross-device path translation (e.g. `/Users/alice=/Users/bob`) used by `resume` to rewrite jsonl paths.
 
 Resume does NOT yet do fork bookkeeping (if both A and B resume the same session and continue, the diverging jsonls each ship at next sync). That's deferred to v0.5.1.
 

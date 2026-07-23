@@ -23,7 +23,7 @@ describe("stripVolatileSuffixes", () => {
   });
   it("strips corp FQDN suffixes", async () => {
     const { stripVolatileSuffixes } = await import("../../src/commands/init-wizard.js");
-    expect(stripVolatileSuffixes("MIS-EV2-BB1.surfacescenarios.org")).toBe("MIS-EV2-BB1");
+    expect(stripVolatileSuffixes("CORP-DHCP-7X2.corp.example.com")).toBe("CORP-DHCP-7X2");
     expect(stripVolatileSuffixes("host42.corp.example.com")).toBe("host42");
   });
   it("leaves a bare label unchanged", async () => {
