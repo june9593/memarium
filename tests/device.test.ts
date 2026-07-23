@@ -51,7 +51,7 @@ describe("isStableDeviceName", () => {
   it("accepts physical-label style names as stable", () => {
     expect(isStableDeviceName("mini2")).toBe(true);
     expect(isStableDeviceName("work-laptop")).toBe(true);
-    expect(isStableDeviceName("yue-mini2")).toBe(true);
+    expect(isStableDeviceName("alex-mini2")).toBe(true);
   });
   it("accepts mixed-case names without a dot as stable", () => {
     expect(isStableDeviceName("laptop-MacBook-Pro-2")).toBe(true);

@@ -867,7 +867,7 @@ Three new commands:
 
 - `vibebook list-sessions [--project --since --device]` — find resumable sessions across all devices in the spool.
 - `vibebook resume <sessionId>` — copy a spool session's jsonl into `~/.claude/projects/<encoded-cwd>/<id>.jsonl` and print the `cd <project> && claude --resume <id>` command to run.
-- `vibebook config --map-path FROM=TO` — register a cross-device path translation (e.g. `/Users/yueA=/Users/yueB`) used by `resume` to rewrite jsonl paths.
+- `vibebook config --map-path FROM=TO` — register a cross-device path translation (e.g. `/Users/alice=/Users/bob`) used by `resume` to rewrite jsonl paths.
 
 Resume does NOT yet do fork bookkeeping (if both A and B resume the same session and continue, the diverging jsonls each ship at next sync). That's deferred to v0.5.1.
 

@@ -105,7 +105,7 @@ export function stripVolatileSuffixes(name: string): string {
     .replace(/\.local$/i, "")
     .replace(/\.lan$/i, "")
     // Strip first .<dotted-suffix> on FQDN-shaped names; preserves multi-dot
-    // user-provided names like "yue.mini.2" by only touching the case where
+    // user-provided names like "alex.mini.2" by only touching the case where
     // the suffix contains letters (DNS-style).
     .replace(/\.[a-z][a-z0-9.-]*$/i, "");
 }

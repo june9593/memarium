@@ -150,7 +150,7 @@ export async function run(argv: string[]) {
   program
     .command("config")
     .description("Inspect or modify ~/.memarium/config.json.")
-    .option("--map-path <FROM=TO>", "add a cross-device path mapping (e.g. /Users/yueA=/Users/yueB) for `memarium resume`")
+    .option("--map-path <FROM=TO>", "add a cross-device path mapping (e.g. /Users/alice=/Users/bob) for `memarium resume`")
     .option("--device <name>", "set a stable device branch name (e.g. 'mini2') — overrides the volatile hostname() default")
     .action(async (opts: { mapPath?: string; device?: string }) => {
       if (opts.mapPath) {

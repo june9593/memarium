@@ -52,11 +52,11 @@ memarium list-sessions --since 7d           # Find sessions from this week
 memarium resume <sessionId>                  # Copy jsonl + emit `claude --resume` hint
 ```
 
-If A and B have different home dir layouts (e.g. `/Users/yueA` vs
-`/Users/yueB`), tell memarium how to translate paths once:
+If A and B have different home dir layouts (e.g. `/Users/alice` vs
+`/Users/bob`), tell memarium how to translate paths once:
 
 ```sh
-memarium config --map-path /Users/yueA=/Users/yueB
+memarium config --map-path /Users/alice=/Users/bob
 ```
 
 After that, `memarium resume` rewrites all absolute paths in the jsonl
