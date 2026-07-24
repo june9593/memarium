@@ -36,6 +36,14 @@ interface MemorySeed {
   body: string;
   /** Override the path stored in index.memory.json (for traversal tests). */
   path?: string;
+  /** Memory lifecycle status; defaults to "active". Set "archived" for the
+   *  archival-carry guard test. Written into BOTH the md frontmatter and the
+   *  index entry so we can assert merge-books preserves it opaquely. */
+  status?: string;
+  /** Archival provenance fields (0.20 archival arc). When provided they are
+   *  emitted into the md frontmatter and the index entry. */
+  archivedAt?: string;
+  archivedReason?: string;
 }
 
 interface EntitySeed {
@@ -135,7 +143,13 @@ async function setupBranch(seed: BranchSeed): Promise<void> {
       const scope = m.project ?? "_global";
       const slug = m.id.split("/").pop()!;
       const rel = `memory/${m.type}/${scope}/${slug}.md`;
-      const mdContent = `---\nid: ${m.id}\ntype: ${m.type}\nupdatedAt: ${m.updatedAt}\ntitle: ${m.title}\n---\n\n${m.body}`;
+      const status = m.status ?? "active";
+      // Emit archival provenance into the md frontmatter when present, so the
+      // verbatim blob copy carries the new fields through aggregation.
+      const archivalFm =
+        (m.archivedAt !== undefined ? `archivedAt: ${m.archivedAt}\n` : "") +
+        (m.archivedReason !== undefined ? `archivedReason: ${m.archivedReason}\n` : "");
+      const mdContent = `---\nid: ${m.id}\ntype: ${m.type}\nupdatedAt: ${m.updatedAt}\nstatus: ${status}\n${archivalFm}title: ${m.title}\n---\n\n${m.body}`;
       writeFileTo(dir, rel, mdContent);
       // Use explicit path override when provided (e.g. for path-traversal tests)
       const indexedPath = m.path !== undefined ? m.path : rel;
@@ -146,7 +160,11 @@ async function setupBranch(seed: BranchSeed): Promise<void> {
         updatedAt: m.updatedAt,
         title: m.title,
         path: indexedPath,
-        status: "active",
+        status,
+        // Carry archival provenance in the index entry too (undefined fields
+        // are dropped by JSON.stringify, matching a never-archived entry).
+        ...(m.archivedAt !== undefined ? { archivedAt: m.archivedAt } : {}),
+        ...(m.archivedReason !== undefined ? { archivedReason: m.archivedReason } : {}),
         originDevice: null,
       };
     }
@@ -390,6 +408,56 @@ describe("merge-books.mjs (memory aggregation)", () => {
       "core/_global/rule", "procedural/code-src/b", "semantic/code-src/a",
     ]);
     expect(idx.entries["semantic/code-src/a"].originDevice).toBe("Mac-mini");
+  }, T);
+
+  it("carries archived status + archivedReason through aggregation (latest-wins on updatedAt)", async () => {
+    // Archival arc (0.20): the plugin now marks a memory status:"archived" and
+    // stamps archivedAt/archivedReason. The shared contract is memory/ layout +
+    // index.memory.json; merge-books must carry the new status value + the two
+    // new frontmatter fields across CI aggregation WITHOUT loss or rejection —
+    // it treats status opaquely (union by id, latest updatedAt wins).
+    //
+    // Branch A: active copy, OLDER updatedAt. Branch B: same id archived, NEWER
+    // updatedAt + archivedReason/archivedAt. The archived copy must win and its
+    // new fields must survive in both the aggregated index entry and the md body.
+    await setupBranch({
+      device: "Mac.lan",
+      memories: [
+        { id: "semantic/p/x", type: "semantic", project: "p",
+          updatedAt: "2026-07-01T00:00:00.000Z", body: "ACTIVE body (older)",
+          title: "fact X", status: "active" },
+      ],
+    });
+    await setupBranch({
+      device: "Mac-mini",
+      memories: [
+        { id: "semantic/p/x", type: "semantic", project: "p",
+          updatedAt: "2026-07-10T00:00:00.000Z", body: "ARCHIVED body (newer wins)",
+          title: "fact X", status: "archived",
+          archivedAt: "2026-07-10T00:00:00.000Z",
+          archivedReason: "superseded-by-newer-fact" },
+      ],
+    });
+
+    await runMerge();
+
+    // The aggregated index entry reflects the archived (newer) copy, opaquely.
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
+    expect(Object.keys(idx.entries)).toEqual(["semantic/p/x"]);
+    const entry = idx.entries["semantic/p/x"];
+    expect(entry.status).toBe("archived");
+    expect(entry.archivedReason).toBe("superseded-by-newer-fact");
+    expect(entry.archivedAt).toBe("2026-07-10T00:00:00.000Z");
+    expect(entry.originDevice).toBe("Mac-mini");
+
+    // The md body is copied verbatim, so its frontmatter carries the new
+    // status value + archival fields through aggregation unchanged.
+    const md = readFileSync(join(workspace, "memory/semantic/p/x.md"), "utf8");
+    expect(md).toContain("status: archived");
+    expect(md).toContain("archivedAt: 2026-07-10T00:00:00.000Z");
+    expect(md).toContain("archivedReason: superseded-by-newer-fact");
+    expect(md).toContain("ARCHIVED body (newer wins)");
+    expect(md).not.toContain("ACTIVE body (older)");
   }, T);
 
   it("skips memory entries with unsafe paths (path traversal guard)", async () => {
