@@ -454,6 +454,7 @@ describe("merge-books.mjs (memory aggregation)", () => {
     // status value + archival fields through aggregation unchanged.
     const md = readFileSync(join(workspace, "memory/semantic/p/x.md"), "utf8");
     expect(md).toContain("status: archived");
+    expect(md).toContain("archivedAt: 2026-07-10T00:00:00.000Z");
     expect(md).toContain("archivedReason: superseded-by-newer-fact");
     expect(md).toContain("ARCHIVED body (newer wins)");
     expect(md).not.toContain("ACTIVE body (older)");
