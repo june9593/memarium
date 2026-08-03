@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.15.1 — 2026-08-04
+
+### Publish the scrubbed sources (no behavior change)
+
+0.15.0 was published on 2026-07-14, before the repository was scrubbed of
+personal and company-internal identifiers on 2026-07-23. The published tarball
+therefore still shipped those strings in `dist/` and `README.md`. This release
+exists to make `latest` point at the scrubbed sources.
+
+- CLI help text: the `config --map-path` example is now
+  `/Users/alice=/Users/bob` (was a maintainer-derived path pair).
+- Comments and doc examples across `src/` no longer carry a corporate DHCP
+  hostname, maintainer-derived device/path names, or project-identifying
+  references; `README.md` and the aggregate workflow/`merge-books.mjs` headers
+  were updated to match (the workflow's display name is now
+  "memarium aggregate memory", matching the post-book reality).
+- Also carries the test-only guard added in #35, which locks that CI
+  aggregation passes a memory's `archived` status + `archivedAt`/`archivedReason`
+  through unchanged — the npm-side contract for the plugin's 0.20.0 archival
+  feature. `merge-books.mjs` itself needed no change.
+
+**Nothing executable changed**: no logic, no CLI behavior beyond the one help
+string, no schema. Upgrading is optional unless you care about the shipped
+strings.
+
 ## 0.15.0 — 2026-07-13
 
 ### Drop the book aggregation pass (Phase C2, npm side)
