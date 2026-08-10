@@ -171,19 +171,17 @@ function loadQaIndexFromBranch(ref) {
 }
 
 /**
- * Normalize a date-ish value to a plain `YYYY-MM-DD` CALENDAR date, or null when
- * it isn't a parseable string. Local mirror of the plugin's
- * `calendarDate()` in src/memory/dates.ts (`Date.parse` → `toISOString().slice(0,10)`).
+ * Parse a date-ish value to epoch milliseconds, or null when it isn't a
+ * parseable string.
  *
- * It has to be duplicated rather than imported: this file is a standalone .mjs
+ * It has to live here rather than be imported: this file is a standalone .mjs
  * executed by `node assets/scripts/merge-books.mjs` from the CI workflow
  * (assets/workflows/memarium-aggregate.yml) with no build step and no deps.
  */
-function calendarDay(v) {
+function epochMs(v) {
   if (typeof v !== "string") return null;
   const ts = Date.parse(v);
-  if (!Number.isFinite(ts)) return null;
-  try { return new Date(ts).toISOString().slice(0, 10); } catch { return null; }
+  return Number.isFinite(ts) ? ts : null;
 }
 
 /**
@@ -192,29 +190,43 @@ function calendarDay(v) {
  *
  * The three aggregation passes below (memory / entities / qa) used to compare
  * `updatedAt` as RAW LEXICAL STRINGS, which is not chronological across the
- * mixed ISO forms the two writers actually emit (plain `YYYY-MM-DD`, `...Z`
+ * mixed ISO forms the writers actually emit (plain `YYYY-MM-DD`, `...Z`
  * timestamps, and offset timestamps). An offset form like
- * `2026-05-05T14:30:00-10:00` is `2026-05-06T00:30Z` in UTC — a LATER calendar
- * day than `2026-05-05T23:00:00Z` — yet it sorts lexically BEFORE it, so the
- * stale copy won. That matters more here than at the plugin's read surfaces:
- * this is the CI aggregator, so the wrong winner's md + index entry is
- * PERSISTED into the aggregated tree on main.
+ * `2026-05-05T14:30:00-10:00` is `2026-05-06T00:30Z` in UTC — LATER than
+ * `2026-05-05T23:00:00Z` — yet it sorts lexically BEFORE it, so the stale copy
+ * won. That matters more here than at the plugin's read surfaces: this is the
+ * CI aggregator, so the wrong winner's md + index entry is PERSISTED into the
+ * aggregated tree on main.
+ *
+ * The comparison is on FULL TIMESTAMPS (epoch ms), deliberately not coarsened
+ * to calendar days. Day granularity would fix the cross-day case above but
+ * would ALSO silently change same-day pairs that lexical order already ordered
+ * correctly (`...T22:00:00Z` vs `...T01:00:00Z`, or a `...T08:00:00Z` timestamp
+ * vs a bare `2026-05-06`) into traversal-order ties. Epoch-ms comparison fixes
+ * only the mixed-ISO-form bug and leaves every other pair deciding exactly as
+ * it did before.
  *
  * Rules:
- *  - different calendar day → the later day wins;
- *  - SAME calendar day → false, so the already-seen entry keeps winning. The
- *    tie is resolved by branch traversal order (git for-each-ref, i.e. refname
- *    order) and is deliberately left as-is: picking a different device on a
- *    same-day tie would be a behavior change beyond this fix;
+ *  - the chronologically later updatedAt wins, at full timestamp resolution;
+ *  - EXACTLY equal instants → false, so the already-seen entry keeps winning.
+ *    That tie is resolved by branch traversal order (git for-each-ref, i.e.
+ *    refname order), as it always was;
  *  - an unparseable / missing updatedAt never displaces a parseable one, and
  *    when both are unparseable the existing entry is kept.
+ *
+ * The plugin-side counterpart (memarium-plugin #65,
+ * `source-resolver.mergeIndexById`) intentionally uses DAY granularity instead:
+ * there a same-day pair must register as a TIE so a same-day sibling edit
+ * reaches the write guard's divergence check. This pass has no divergence
+ * check — it just picks a winner and persists it — so coarsening here would
+ * only throw away ordering information.
  */
-function isNewerDay(candidate, existing) {
-  const c = calendarDay(candidate);
+function isNewerTimestamp(candidate, existing) {
+  const c = epochMs(candidate);
   if (c === null) return false;          // garbage/absent never wins (incl. both-garbage)
-  const e = calendarDay(existing);
+  const e = epochMs(existing);
   if (e === null) return true;           // any readable date beats an unreadable one
-  return c > e;                          // same day → false: traversal order decides
+  return c > e;                          // exactly equal → false: traversal order decides
 }
 
 function writeRel(relPath, content) {
@@ -295,7 +307,7 @@ function main() {
       if (relPath.startsWith("memory/entities/")) continue;   // entity pass owns this subtree
       if (relPath.startsWith("memory/qa/")) continue;         // qa pass owns this subtree
       const existing = memByKey.get(e.id);
-      if (!existing || isNewerDay(e.updatedAt, existing.entry.updatedAt)) {
+      if (!existing || isNewerTimestamp(e.updatedAt, existing.entry.updatedAt)) {
         memByKey.set(e.id, { ref, device, entry: e });
       }
     }
@@ -366,7 +378,7 @@ function main() {
         continue;
       }
       const existing = entityByKey.get(e.id);
-      if (!existing || isNewerDay(e.updatedAt, existing.entry.updatedAt)) {
+      if (!existing || isNewerTimestamp(e.updatedAt, existing.entry.updatedAt)) {
         entityByKey.set(e.id, { ref, device, entry: e });
       }
     }
@@ -430,7 +442,7 @@ function main() {
         continue;
       }
       const existing = qaByKey.get(e.id);
-      if (!existing || isNewerDay(e.updatedAt, existing.entry.updatedAt)) {
+      if (!existing || isNewerTimestamp(e.updatedAt, existing.entry.updatedAt)) {
         qaByKey.set(e.id, { ref, device, entry: e });
       }
     }

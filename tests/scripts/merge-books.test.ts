@@ -960,10 +960,14 @@ describe("merge-books.mjs (memory aggregation)", () => {
  * The three union passes (memory / entities / qa) used to do
  * `(e.updatedAt ?? "") > (existing.entry.updatedAt ?? "")`. That is wrong for the
  * mixed-but-valid ISO forms the writers emit: an offset timestamp like
- * `2026-05-05T14:30:00-10:00` is `2026-05-06T00:30Z` in UTC — a LATER calendar
- * day than `2026-05-05T23:00:00Z` — yet it sorts lexically BEFORE it (position 11:
+ * `2026-05-05T14:30:00-10:00` is `2026-05-06T00:30Z` in UTC — LATER than
+ * `2026-05-05T23:00:00Z` — yet it sorts lexically BEFORE it (position 11:
  * '1' < '2'). merge-books is the CI aggregator, so losing that comparison
  * PERSISTS the stale copy's md + index entry onto main.
+ *
+ * The comparison is on FULL TIMESTAMPS (epoch ms), so ONLY that mixed-form case
+ * changes: the same-day and bare-date-vs-timestamp cases below are
+ * behavior-preservation locks that would break under calendar-day granularity.
  *
  * Device names are chosen so branch traversal order is unambiguous:
  * `git for-each-ref refs/remotes/origin/` sorts by refname, so alpha-box is
@@ -971,9 +975,9 @@ describe("merge-books.mjs (memory aggregation)", () => {
  */
 describe("merge-books.mjs (updatedAt is compared chronologically, not lexically)", () => {
   it("picks the chronologically-later copy when an offset timestamp sorts lexically earlier (memory + entities + qa)", async () => {
-    // alpha-box (traversed FIRST): 2026-05-05T23:00:00Z  → calendar day 2026-05-05
-    // zulu-box  (traversed SECOND): 2026-05-05T14:30:00-10:00 = 2026-05-06T00:30Z
-    //                               → calendar day 2026-05-06, the LATER day.
+    // alpha-box (traversed FIRST): 2026-05-05T23:00:00Z
+    // zulu-box  (traversed SECOND): 2026-05-05T14:30:00-10:00 = 2026-05-06T00:30Z,
+    //                               90 minutes LATER in real time.
     // Lexically "2026-05-05T14:30:00-10:00" < "2026-05-05T23:00:00Z", so the old
     // code kept alpha-box's STALE copy. zulu-box must win.
     const STALE = "2026-05-05T23:00:00Z";
@@ -1071,12 +1075,17 @@ describe("merge-books.mjs (updatedAt is compared chronologically, not lexically)
       .toContain("newer on alpha");
   }, T);
 
-  it("resolves a same-calendar-day pair by traversal order — the first branch seen keeps winning", async () => {
-    // Behavior-preservation lock. The comparison is deliberately NOT a tie-break:
-    // on the same calendar day the already-seen entry stays, so alpha-box (first
-    // in refname order) wins both ids below — including the one where zulu-box
-    // carries a later TIME OF DAY. Changing which device wins a tie is out of
-    // scope for the chronological fix.
+  it("resolves a same-calendar-day pair by TIME OF DAY — the later time wins (behavior-preservation lock)", async () => {
+    // Behavior-preservation lock, and the reason this fix compares full
+    // timestamps rather than calendar days. Under the OLD lexical comparator
+    // "2026-05-06T22:00:00Z" > "2026-05-06T01:00:00Z" was already TRUE, so the
+    // later same-day time DID displace the earlier one. Coarsening to calendar
+    // days would turn that into a traversal-order tie — a real behavior change
+    // beyond the cross-day bug. Epoch-ms comparison keeps the old outcome.
+    //
+    //   semantic/p/identical → EXACTLY equal instants: still a tie, so
+    //                          alpha-box (first in refname order) keeps it.
+    //   semantic/p/same-day  → zulu-box carries the later TIME, so zulu wins.
     await setupBranch({
       device: "alpha-box",
       memories: [
@@ -1099,12 +1108,52 @@ describe("merge-books.mjs (updatedAt is compared chronologically, not lexically)
     await runMerge();
 
     const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
+    // exactly equal → existing (first-traversed) wins, unchanged
     expect(idx.entries["semantic/p/identical"].originDevice).toBe("alpha-box");
-    expect(idx.entries["semantic/p/same-day"].originDevice).toBe("alpha-box");
     expect(readFileSync(join(workspace, "memory/semantic/p/identical.md"), "utf8"))
       .toContain("alpha copy");
+    // same day, later time → the later time wins, exactly as lexical order did
+    expect(idx.entries["semantic/p/same-day"].originDevice).toBe("zulu-box");
+    expect(idx.entries["semantic/p/same-day"].updatedAt).toBe("2026-05-06T22:00:00Z");
     expect(readFileSync(join(workspace, "memory/semantic/p/same-day.md"), "utf8"))
-      .toContain("alpha copy");
+      .toContain("zulu copy");
+  }, T);
+
+  it("a same-day timestamp beats a bare YYYY-MM-DD, in either traversal direction (behavior-preservation lock)", async () => {
+    // Also unchanged from the old lexical comparator: "2026-05-06T09:00:00Z" >
+    // "2026-05-06" is TRUE lexically (common prefix, longer string wins), and a
+    // bare date parses as that day's midnight UTC — so the timestamp is later
+    // under epoch-ms comparison too. Day granularity would have made these ties.
+    await setupBranch({
+      device: "alpha-box",
+      memories: [
+        // bare date first-traversed: the second branch's timestamp must displace it
+        { id: "semantic/p/ts-second", type: "semantic", project: "p",
+          updatedAt: "2026-05-06", body: "bare date on alpha", title: "T1" },
+        // timestamp first-traversed: the second branch's bare date must NOT displace it
+        { id: "semantic/p/ts-first", type: "semantic", project: "p",
+          updatedAt: "2026-05-06T09:00:00Z", body: "timestamp on alpha", title: "T2" },
+      ],
+    });
+    await setupBranch({
+      device: "zulu-box",
+      memories: [
+        { id: "semantic/p/ts-second", type: "semantic", project: "p",
+          updatedAt: "2026-05-06T09:00:00Z", body: "timestamp on zulu", title: "T1" },
+        { id: "semantic/p/ts-first", type: "semantic", project: "p",
+          updatedAt: "2026-05-06", body: "bare date on zulu", title: "T2" },
+      ],
+    });
+
+    await runMerge();
+
+    const idx = JSON.parse(readFileSync(join(workspace, ".memarium/index.memory.json"), "utf8"));
+    expect(idx.entries["semantic/p/ts-second"].originDevice).toBe("zulu-box");
+    expect(readFileSync(join(workspace, "memory/semantic/p/ts-second.md"), "utf8"))
+      .toContain("timestamp on zulu");
+    expect(idx.entries["semantic/p/ts-first"].originDevice).toBe("alpha-box");
+    expect(readFileSync(join(workspace, "memory/semantic/p/ts-first.md"), "utf8"))
+      .toContain("timestamp on alpha");
   }, T);
 
   it("an unparseable or missing updatedAt never displaces a parseable one", async () => {

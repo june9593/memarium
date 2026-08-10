@@ -21,20 +21,33 @@ memarium-plugin #65): merge-books is the CI aggregator, so the wrong winner's
 `.md` body and index entry are **persisted** into the aggregated tree on `main`,
 not merely shown in a read view.
 
-All three sites now share one local helper, `isNewerDay()`, so they cannot drift
-apart again:
+All three sites now share one local helper, `isNewerTimestamp()`, so they cannot
+drift apart again:
 
-- different calendar day → the later day wins (both sides normalized via
-  `Date.parse` → `toISOString().slice(0,10)`, mirroring the plugin's
-  `calendarDate()` in `src/memory/dates.ts`);
-- same calendar day → the already-seen entry keeps winning. The tie is resolved
-  by branch traversal order and is deliberately left as-is; no new tie-break was
+- the chronologically later `updatedAt` wins, compared at **full timestamp
+  resolution** (`Date.parse` → epoch milliseconds) rather than as raw strings;
+- exactly equal instants → the already-seen entry keeps winning. That tie is
+  resolved by branch traversal order, exactly as it was; no new tie-break was
   introduced;
 - an unparseable or missing `updatedAt` never displaces a parseable one, and
   when both are unparseable the existing entry is kept.
 
-The helper is duplicated rather than imported because `merge-books.mjs` is a
-standalone `.mjs` run by `node` in CI with no build step.
+Apart from the mixed-ISO-form case this fix exists to correct, every pair
+decides exactly as it did before: a same-day pair with different times still
+resolves to the later time, and a `...T08:00:00Z` timestamp still beats a bare
+`2026-05-06` on the same day. An earlier draft of this fix compared calendar
+days, which would have quietly turned both of those into traversal-order ties —
+a behavior change well beyond the bug.
+
+The plugin-side counterpart (memarium-plugin #65,
+`source-resolver.mergeIndexById`) does use day granularity, deliberately: there
+a same-day pair must register as a *tie* so a same-day sibling edit reaches the
+write guard's divergence check. This pass has no divergence check — it just
+picks a winner and persists it — so coarsening here would only discard ordering
+information.
+
+The helper lives in the script rather than being imported because
+`merge-books.mjs` is a standalone `.mjs` run by `node` in CI with no build step.
 
 Also in this release: `package-lock.json` picked up the `vibebook` → `memarium`
 package name and `bin` entries it had been missing since the rename.
