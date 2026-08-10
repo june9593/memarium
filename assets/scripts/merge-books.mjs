@@ -170,6 +170,53 @@ function loadQaIndexFromBranch(ref) {
   }
 }
 
+/**
+ * Normalize a date-ish value to a plain `YYYY-MM-DD` CALENDAR date, or null when
+ * it isn't a parseable string. Local mirror of the plugin's
+ * `calendarDate()` in src/memory/dates.ts (`Date.parse` → `toISOString().slice(0,10)`).
+ *
+ * It has to be duplicated rather than imported: this file is a standalone .mjs
+ * executed by `node assets/scripts/merge-books.mjs` from the CI workflow
+ * (assets/workflows/memarium-aggregate.yml) with no build step and no deps.
+ */
+function calendarDay(v) {
+  if (typeof v !== "string") return null;
+  const ts = Date.parse(v);
+  if (!Number.isFinite(ts)) return null;
+  try { return new Date(ts).toISOString().slice(0, 10); } catch { return null; }
+}
+
+/**
+ * Should `candidate`'s updatedAt displace `existing`'s when unioning the same
+ * id across device branches?
+ *
+ * The three aggregation passes below (memory / entities / qa) used to compare
+ * `updatedAt` as RAW LEXICAL STRINGS, which is not chronological across the
+ * mixed ISO forms the two writers actually emit (plain `YYYY-MM-DD`, `...Z`
+ * timestamps, and offset timestamps). An offset form like
+ * `2026-05-05T14:30:00-10:00` is `2026-05-06T00:30Z` in UTC — a LATER calendar
+ * day than `2026-05-05T23:00:00Z` — yet it sorts lexically BEFORE it, so the
+ * stale copy won. That matters more here than at the plugin's read surfaces:
+ * this is the CI aggregator, so the wrong winner's md + index entry is
+ * PERSISTED into the aggregated tree on main.
+ *
+ * Rules:
+ *  - different calendar day → the later day wins;
+ *  - SAME calendar day → false, so the already-seen entry keeps winning. The
+ *    tie is resolved by branch traversal order (git for-each-ref, i.e. refname
+ *    order) and is deliberately left as-is: picking a different device on a
+ *    same-day tie would be a behavior change beyond this fix;
+ *  - an unparseable / missing updatedAt never displaces a parseable one, and
+ *    when both are unparseable the existing entry is kept.
+ */
+function isNewerDay(candidate, existing) {
+  const c = calendarDay(candidate);
+  if (c === null) return false;          // garbage/absent never wins (incl. both-garbage)
+  const e = calendarDay(existing);
+  if (e === null) return true;           // any readable date beats an unreadable one
+  return c > e;                          // same day → false: traversal order decides
+}
+
 function writeRel(relPath, content) {
   const abs = join(REPO_ROOT, relPath);
   mkdirSync(dirname(abs), { recursive: true });
@@ -248,7 +295,7 @@ function main() {
       if (relPath.startsWith("memory/entities/")) continue;   // entity pass owns this subtree
       if (relPath.startsWith("memory/qa/")) continue;         // qa pass owns this subtree
       const existing = memByKey.get(e.id);
-      if (!existing || (e.updatedAt ?? "") > (existing.entry.updatedAt ?? "")) {
+      if (!existing || isNewerDay(e.updatedAt, existing.entry.updatedAt)) {
         memByKey.set(e.id, { ref, device, entry: e });
       }
     }
@@ -319,7 +366,7 @@ function main() {
         continue;
       }
       const existing = entityByKey.get(e.id);
-      if (!existing || (e.updatedAt ?? "") > (existing.entry.updatedAt ?? "")) {
+      if (!existing || isNewerDay(e.updatedAt, existing.entry.updatedAt)) {
         entityByKey.set(e.id, { ref, device, entry: e });
       }
     }
@@ -383,7 +430,7 @@ function main() {
         continue;
       }
       const existing = qaByKey.get(e.id);
-      if (!existing || (e.updatedAt ?? "") > (existing.entry.updatedAt ?? "")) {
+      if (!existing || isNewerDay(e.updatedAt, existing.entry.updatedAt)) {
         qaByKey.set(e.id, { ref, device, entry: e });
       }
     }

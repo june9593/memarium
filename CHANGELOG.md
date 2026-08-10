@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.15.2 — 2026-08-10
+
+### Fix: CI aggregation compared `updatedAt` lexically, so a stale copy could win
+
+`assets/scripts/merge-books.mjs` unions each device branch's `memory/`,
+`memory/entities/` and `memory/qa/` by id, keeping the entry with the newest
+`updatedAt`. All three passes picked the winner with a raw string comparison
+(`(e.updatedAt ?? "") > (existing.entry.updatedAt ?? "")`), which is **not**
+chronological across the mixed-but-valid ISO forms the writers emit — plain
+`YYYY-MM-DD`, `...Z` timestamps, and offset timestamps.
+
+Concretely, `2026-05-05T14:30:00-10:00` is `2026-05-06T00:30Z` in UTC — a later
+calendar day than `2026-05-05T23:00:00Z` — yet it sorts lexically *before* it.
+A garbage value was worse: `"not-a-date" > "2026-05-06"` is `true`, so an
+unreadable date could evict a healthy entry.
+
+This matters more here than at the plugin's read surfaces (fixed separately in
+memarium-plugin #65): merge-books is the CI aggregator, so the wrong winner's
+`.md` body and index entry are **persisted** into the aggregated tree on `main`,
+not merely shown in a read view.
+
+All three sites now share one local helper, `isNewerDay()`, so they cannot drift
+apart again:
+
+- different calendar day → the later day wins (both sides normalized via
+  `Date.parse` → `toISOString().slice(0,10)`, mirroring the plugin's
+  `calendarDate()` in `src/memory/dates.ts`);
+- same calendar day → the already-seen entry keeps winning. The tie is resolved
+  by branch traversal order and is deliberately left as-is; no new tie-break was
+  introduced;
+- an unparseable or missing `updatedAt` never displaces a parseable one, and
+  when both are unparseable the existing entry is kept.
+
+The helper is duplicated rather than imported because `merge-books.mjs` is a
+standalone `.mjs` run by `node` in CI with no build step.
+
+Also in this release: `package-lock.json` picked up the `vibebook` → `memarium`
+package name and `bin` entries it had been missing since the rename.
+
 ## 0.15.1 — 2026-08-04
 
 ### Publish the scrubbed sources (no behavior change)
