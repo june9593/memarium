@@ -170,6 +170,65 @@ function loadQaIndexFromBranch(ref) {
   }
 }
 
+/**
+ * Parse a date-ish value to epoch milliseconds, or null when it isn't a
+ * parseable string.
+ *
+ * It has to live here rather than be imported: this file is a standalone .mjs
+ * executed by `node assets/scripts/merge-books.mjs` from the CI workflow
+ * (assets/workflows/memarium-aggregate.yml) with no build step and no deps.
+ */
+function epochMs(v) {
+  if (typeof v !== "string") return null;
+  const ts = Date.parse(v);
+  return Number.isFinite(ts) ? ts : null;
+}
+
+/**
+ * Should `candidate`'s updatedAt displace `existing`'s when unioning the same
+ * id across device branches?
+ *
+ * The three aggregation passes below (memory / entities / qa) used to compare
+ * `updatedAt` as RAW LEXICAL STRINGS, which is not chronological across the
+ * mixed ISO forms the writers actually emit (plain `YYYY-MM-DD`, `...Z`
+ * timestamps, and offset timestamps). An offset form like
+ * `2026-05-05T14:30:00-10:00` is `2026-05-06T00:30Z` in UTC — LATER than
+ * `2026-05-05T23:00:00Z` — yet it sorts lexically BEFORE it, so the stale copy
+ * won. That matters more here than at the plugin's read surfaces: this is the
+ * CI aggregator, so the wrong winner's md + index entry is PERSISTED into the
+ * aggregated tree on main.
+ *
+ * The comparison is on FULL TIMESTAMPS (epoch ms), deliberately not coarsened
+ * to calendar days. Day granularity would fix the cross-day case above but
+ * would ALSO silently change same-day pairs that lexical order already ordered
+ * correctly (`...T22:00:00Z` vs `...T01:00:00Z`, or a `...T08:00:00Z` timestamp
+ * vs a bare `2026-05-06`) into traversal-order ties. Epoch-ms comparison fixes
+ * only the mixed-ISO-form bug and leaves every other pair deciding exactly as
+ * it did before.
+ *
+ * Rules:
+ *  - the chronologically later updatedAt wins, at full timestamp resolution;
+ *  - EXACTLY equal instants → false, so the already-seen entry keeps winning.
+ *    That tie is resolved by branch traversal order (git for-each-ref, i.e.
+ *    refname order), as it always was;
+ *  - an unparseable / missing updatedAt never displaces a parseable one, and
+ *    when both are unparseable the existing entry is kept.
+ *
+ * The plugin-side counterpart (memarium-plugin #65,
+ * `source-resolver.mergeIndexById`) intentionally uses DAY granularity instead:
+ * there a same-day pair must register as a TIE so a same-day sibling edit
+ * reaches the write guard's divergence check. This pass has no divergence
+ * check — it just picks a winner and persists it — so coarsening here would
+ * only throw away ordering information.
+ */
+function isNewerTimestamp(candidate, existing) {
+  const c = epochMs(candidate);
+  if (c === null) return false;          // garbage/absent never wins (incl. both-garbage)
+  const e = epochMs(existing);
+  if (e === null) return true;           // any readable date beats an unreadable one
+  return c > e;                          // exactly equal → false: traversal order decides
+}
+
 function writeRel(relPath, content) {
   const abs = join(REPO_ROOT, relPath);
   mkdirSync(dirname(abs), { recursive: true });
@@ -248,7 +307,7 @@ function main() {
       if (relPath.startsWith("memory/entities/")) continue;   // entity pass owns this subtree
       if (relPath.startsWith("memory/qa/")) continue;         // qa pass owns this subtree
       const existing = memByKey.get(e.id);
-      if (!existing || (e.updatedAt ?? "") > (existing.entry.updatedAt ?? "")) {
+      if (!existing || isNewerTimestamp(e.updatedAt, existing.entry.updatedAt)) {
         memByKey.set(e.id, { ref, device, entry: e });
       }
     }
@@ -319,7 +378,7 @@ function main() {
         continue;
       }
       const existing = entityByKey.get(e.id);
-      if (!existing || (e.updatedAt ?? "") > (existing.entry.updatedAt ?? "")) {
+      if (!existing || isNewerTimestamp(e.updatedAt, existing.entry.updatedAt)) {
         entityByKey.set(e.id, { ref, device, entry: e });
       }
     }
@@ -383,7 +442,7 @@ function main() {
         continue;
       }
       const existing = qaByKey.get(e.id);
-      if (!existing || (e.updatedAt ?? "") > (existing.entry.updatedAt ?? "")) {
+      if (!existing || isNewerTimestamp(e.updatedAt, existing.entry.updatedAt)) {
         qaByKey.set(e.id, { ref, device, entry: e });
       }
     }

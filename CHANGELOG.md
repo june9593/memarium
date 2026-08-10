@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.15.2 — 2026-08-10
+
+### Fix: CI aggregation compared `updatedAt` lexically, so a stale copy could win
+
+`assets/scripts/merge-books.mjs` unions each device branch's `memory/`,
+`memory/entities/` and `memory/qa/` by id, keeping the entry with the newest
+`updatedAt`. All three passes picked the winner with a raw string comparison
+(`(e.updatedAt ?? "") > (existing.entry.updatedAt ?? "")`), which is **not**
+chronological across the mixed-but-valid ISO forms the writers emit — plain
+`YYYY-MM-DD`, `...Z` timestamps, and offset timestamps.
+
+Concretely, `2026-05-05T14:30:00-10:00` is `2026-05-06T00:30Z` in UTC — a later
+calendar day than `2026-05-05T23:00:00Z` — yet it sorts lexically *before* it.
+A garbage value was worse: `"not-a-date" > "2026-05-06"` is `true`, so an
+unreadable date could evict a healthy entry.
+
+This matters more here than at the plugin's read surfaces (fixed separately in
+memarium-plugin #65): merge-books is the CI aggregator, so the wrong winner's
+`.md` body and index entry are **persisted** into the aggregated tree on `main`,
+not merely shown in a read view.
+
+All three sites now share one local helper, `isNewerTimestamp()`, so they cannot
+drift apart again:
+
+- the chronologically later `updatedAt` wins, compared at **full timestamp
+  resolution** (`Date.parse` → epoch milliseconds) rather than as raw strings;
+- exactly equal instants → the already-seen entry keeps winning. That tie is
+  resolved by branch traversal order, exactly as it was; no new tie-break was
+  introduced;
+- an unparseable or missing `updatedAt` never displaces a parseable one, and
+  when both are unparseable the existing entry is kept.
+
+Apart from the mixed-ISO-form case this fix exists to correct, every pair
+decides exactly as it did before: a same-day pair with different times still
+resolves to the later time, and a `...T08:00:00Z` timestamp still beats a bare
+`2026-05-06` on the same day. An earlier draft of this fix compared calendar
+days, which would have quietly turned both of those into traversal-order ties —
+a behavior change well beyond the bug.
+
+The plugin-side counterpart (memarium-plugin #65,
+`source-resolver.mergeIndexById`) does use day granularity, deliberately: there
+a same-day pair must register as a *tie* so a same-day sibling edit reaches the
+write guard's divergence check. This pass has no divergence check — it just
+picks a winner and persists it — so coarsening here would only discard ordering
+information.
+
+The helper lives in the script rather than being imported because
+`merge-books.mjs` is a standalone `.mjs` run by `node` in CI with no build step.
+
+Also in this release: `package-lock.json` picked up the `vibebook` → `memarium`
+package name and `bin` entries it had been missing since the rename.
+
 ## 0.15.1 — 2026-08-04
 
 ### Publish the scrubbed sources (no behavior change)
