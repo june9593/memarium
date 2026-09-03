@@ -126,6 +126,8 @@ describe("resolveProjectIdSync + cachedProjectSlug", () => {
       .toBe("github.com-june9593-memvc");
     expect(resolveProjectIdSync("/a/b/memvc", () => null).slug).toBe("b-memvc");
     expect(resolveProjectIdSync("/a/b/memvc", () => { throw new Error("x"); }).slug).toBe("b-memvc");
+    expect(resolveProjectIdSync("E:\\downloads\\sample-project\\TICKET-1234\\2026-08-06", () => null).slug)
+      .toBe("TICKET-1234-2026-08-06");
   });
 
   it("real git fixture via the default sync resolver", () => {

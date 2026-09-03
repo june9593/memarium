@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.16.1 — 2026-09-03
+
+### Fix Windows non-git project paths (#37)
+
+`projectSlugFromPath()` now splits both `/` and `\` separators and drops a
+standalone drive-letter segment before deriving the parent/basename slug. A
+Windows cwd such as `E:\downloads\sample-project\TICKET-1234\2026-08-06`
+therefore becomes `TICKET-1234-2026-08-06` instead of placing the raw `E:`
+path beneath `raw_sessions/` and failing `mkdirSync` with `ENOENT`. Remote-based
+project identities are unchanged. Regression coverage locks both the direct
+slug helper and the no-remote `resolveProjectIdSync()` path.
+
 ## 0.16.0 — 2026-09-03
 
 ### Add Codex Desktop and interactive Codex CLI JSONL sync
