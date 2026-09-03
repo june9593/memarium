@@ -40,6 +40,13 @@ interface ProjectedMessage {
   reasoning?: string;
   timestamp?: string;
   contentBlocks: ContentBlock[];
+  toolSignature?: string;
+}
+
+interface ToolSpan {
+  start: number;
+  end: number;
+  signature?: string;
 }
 
 const SYNTHETIC_TAGS = [
@@ -125,6 +132,7 @@ export class CodexAdapter implements SourceAdapter {
         .update(indexedTitle)
         .update("\0")
         .update(location)
+        .update("\0full-session-id-path-v1")
         .digest("hex");
       yield {
         sourcePath: candidate.sourcePath,
@@ -304,7 +312,7 @@ export function parseCodexJsonl(
   const responseToolKeys = new Set<string>();
   const responseOutputKeys = new Set<string>();
   const eventTools: ProjectedMessage[] = [];
-  const responseToolSpans = new Map<string, { start: number; end: number }>();
+  const responseToolSpans = new Map<string, ToolSpan>();
 
   for (const record of records) {
     const subtype = stringValue(record.payload.type);
@@ -330,7 +338,7 @@ export function parseCodexJsonl(
           responseToolKeys.add(key);
           responseTools.push(projected);
         }
-        extendToolSpan(responseToolSpans, key, record.index);
+        extendToolSpan(responseToolSpans, key, record.index, projected.toolSignature);
       } else if (RESPONSE_TOOL_OUTPUTS.has(subtype)) {
         const projected = responseToolOutput(record);
         const key = projected.id ?? `${subtype}:${record.index}`;
@@ -446,31 +454,33 @@ function mergeReasoningLanes(
 }
 
 function extendToolSpan(
-  spans: Map<string, { start: number; end: number }>,
+  spans: Map<string, ToolSpan>,
   key: string,
   index: number,
+  signature?: string,
 ): void {
   const span = spans.get(key);
   if (span) {
     span.start = Math.min(span.start, index);
     span.end = Math.max(span.end, index);
+    if (signature) span.signature = signature;
   } else {
-    spans.set(key, { start: index, end: index });
+    spans.set(key, { start: index, end: index, ...(signature ? { signature } : {}) });
   }
 }
 
-/** Codex completion events do not carry the response call_id. The matching
- * response call/output records bracket them in rollout order, so suppress only
- * events inside that narrow span (plus one adjacent record). Event-only tools
- * elsewhere in a mixed legacy/current rollout must survive. */
+/** Codex completion events do not carry the response call_id. Suppress an
+ * event only when its normalized tool+input signature matches a nearby
+ * response call; proximity alone must never erase a different event-only tool. */
 function eventToolsOutsideResponseSpans(
   eventTools: ProjectedMessage[],
-  spans: ReadonlyMap<string, { start: number; end: number }>,
+  spans: ReadonlyMap<string, ToolSpan>,
 ): ProjectedMessage[] {
   const coveredEventIds = new Set<string>();
   for (const event of eventTools) {
-    if (!event.id) continue;
+    if (!event.id || !event.toolSignature) continue;
     const covered = [...spans.values()].some((span) =>
+      span.signature === event.toolSignature &&
       event.index >= span.start - 1 && event.index <= span.end + 1,
     );
     if (covered) coveredEventIds.add(event.id);
@@ -541,6 +551,7 @@ function responseToolCall(record: CodexRecord, subtype: string): ProjectedMessag
     text: "",
     timestamp: record.timestamp,
     contentBlocks: [{ type: "tool_use", name: name || subtype, input: input ?? {}, ...(id ? { id } : {}) }],
+    toolSignature: toolSignature(name || subtype, input ?? {}),
   };
 }
 
@@ -571,7 +582,7 @@ function eventToolMessages(
   if (itemType === "CommandExecution") {
     name = "exec";
     const command = Array.isArray(item.command)
-      ? item.command.filter((part): part is string => typeof part === "string").join(" ")
+      ? item.command.filter((part): part is string => typeof part === "string")
       : stringValue(item.command);
     input = { cmd: command, cwd: stringValue(item.cwd) };
     output = item.aggregated_output ?? item.formatted_output ?? item.stdout ?? item.stderr;
@@ -590,6 +601,7 @@ function eventToolMessages(
     text: "",
     timestamp: record.timestamp,
     contentBlocks: [{ type: "tool_use", name, input, id }],
+    toolSignature: toolSignature(name, input),
   }];
   if (output !== undefined) {
     messages.push({
@@ -638,6 +650,44 @@ function extractText(value: unknown): string {
     }
   }
   return texts.join("\n");
+}
+
+function toolSignature(name: string, input: unknown): string {
+  const family = ["exec", "exec_command", "local_shell"].includes(name) ? "shell" : name;
+  if (family === "shell") {
+    const command = toolCommandText(input);
+    if (command) return `shell:${normalizeText(command)}`;
+  }
+  if (family === "apply_patch") {
+    const patch = objectValue(input).patch;
+    if (typeof patch === "string") return `apply_patch:${normalizeText(patch)}`;
+  }
+  return `${family}:${stableJson(input)}`;
+}
+
+function toolCommandText(input: unknown): string | null {
+  if (typeof input === "string") return input;
+  const row = objectValue(input);
+  return commandTextForSignature(row.command) ?? commandTextForSignature(row.cmd);
+}
+
+function commandTextForSignature(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return null;
+  const parts = value.filter((part): part is string => typeof part === "string");
+  if (parts.length === 0) return null;
+  const executable = parts[0]!.split(/[/\\]/).pop()!.toLowerCase();
+  if (["sh", "bash", "zsh", "fish", "pwsh", "powershell", "powershell.exe", "cmd", "cmd.exe"].includes(executable)) {
+    const commandFlag = parts.findIndex((part, index) =>
+      index > 0 && (/^-[a-z]*c[a-z]*$/i.test(part) || /^--?command$/i.test(part) || /^\/c$/i.test(part)),
+    );
+    if (commandFlag >= 0 && parts[commandFlag + 1]) return parts[commandFlag + 1]!;
+  }
+  return parts.join(" ");
+}
+
+function stableJson(value: unknown): string {
+  try { return JSON.stringify(value); } catch { return String(value); }
 }
 
 function flattenToolOutput(value: unknown): string {

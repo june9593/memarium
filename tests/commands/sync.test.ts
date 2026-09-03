@@ -160,6 +160,34 @@ describe("runSync — Codex JSONL", () => {
     expect(second.skippedCount).toBe(4);
   });
 
+  it("stores same-title Codex sessions with colliding tail shortIds at distinct paths", async () => {
+    const ids = [
+      "019f0000-aaaa-7000-8000-1111deadbeef",
+      "019f0000-bbbb-7000-8000-2222deadbeef",
+    ];
+    const sessionDir = join(codexRoot, "sessions/2026/09/02");
+    mkdirSync(sessionDir, { recursive: true });
+    for (const id of ids) {
+      writeFileSync(join(sessionDir, `rollout-${id}.jsonl`), [
+        JSON.stringify({ timestamp: "2026-09-02T00:00:00Z", type: "session_meta", payload: {
+          id, timestamp: "2026-09-02T00:00:00Z", cwd: "/Users/test/code/collision",
+          originator: "codex-tui", source: "cli",
+        } }),
+        JSON.stringify({ timestamp: "2026-09-02T00:00:01Z", type: "event_msg", payload: {
+          type: "user_message", message: "same visible title",
+        } }),
+      ].join("\n") + "\n");
+    }
+
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
+    const idx = loadIndex(repo);
+    const paths = ids.map((id) => idx.entries[`codex:${id}`]!.relativePath);
+    expect(new Set(paths).size).toBe(2);
+    expect(paths[0]).toContain(ids[0]!);
+    expect(paths[1]).toContain(ids[1]!);
+    expect(paths.every((path) => existsSync(join(repo, path)))).toBe(true);
+  });
+
   it("reimports a title-only rename and removes the superseded rendered file", async () => {
     await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
     const id = "019f0000-1111-7000-8000-0000aaaabbbb";

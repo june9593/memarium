@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.16.3 — 2026-09-03
+
+### Close Codex collision and correlation gaps
+
+- Keep the 8-character Codex tail id for display/lookup, but use the sanitized
+  full thread UUID in rendered filenames so equal tails cannot overwrite one
+  another. The Codex source fingerprint carries a storage-format marker so a
+  prior short-id render is re-written and removed through the existing guarded
+  path cleanup.
+- Correlate response-backed and completed-event tools by normalized tool family
+  plus input content, using record proximity only as a tie-breaker. A different
+  event-only command inside a response span is retained; only an actual mirror
+  is suppressed.
+- Preserve direct local-shell argv boundaries with JSON-style argument quoting,
+  while rendering `sh`/`zsh`/PowerShell/cmd command payloads directly. This keeps
+  multi-word commit messages and TOC previews intact.
+
 ## 0.16.2 — 2026-09-03
 
 ### Harden current Codex tool and injected-context parsing

@@ -111,7 +111,7 @@ EOF
     const m = extractManifest(
       [a("", [
         tu("exec_command", { cmd: 'git commit -m "feat: codex sync"' }),
-        tu("local_shell", { command: ["/bin/zsh", "-lc", 'git tag v1.2.3'] }),
+        tu("local_shell", { command: ["git", "commit", "-m", "fix review"] }),
         tu("apply_patch", { patch: [
           "*** Begin Patch",
           "*** Update File: src/config.ts",
@@ -124,7 +124,7 @@ EOF
     );
     expect(m.commits).toEqual([
       { sha: "", msg: "feat: codex sync", line: 88 },
-      { sha: "v1.2.3", msg: "tag v1.2.3", line: 88 },
+      { sha: "", msg: "fix review", line: 88 },
     ]);
     expect(m.files_touched).toEqual(["src/config.ts", "src/runtime-config.ts", "tests/config.test.ts"]);
     expect(m.tools_used).toEqual({ exec_command: 1, local_shell: 1, apply_patch: 1 });

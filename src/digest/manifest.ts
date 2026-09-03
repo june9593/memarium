@@ -113,7 +113,20 @@ function commandText(value: unknown): string | null {
   if (typeof value === "string") return value;
   if (!Array.isArray(value)) return null;
   const parts = value.filter((part): part is string => typeof part === "string");
-  return parts.length > 0 ? parts.join(" ") : null;
+  if (parts.length === 0) return null;
+  const executable = parts[0]!.split(/[/\\]/).pop()!.toLowerCase();
+  if (["sh", "bash", "zsh", "fish", "pwsh", "powershell", "powershell.exe", "cmd", "cmd.exe"].includes(executable)) {
+    const commandFlag = parts.findIndex((part, index) =>
+      index > 0 && (/^-[a-z]*c[a-z]*$/i.test(part) || /^--?command$/i.test(part) || /^\/c$/i.test(part)),
+    );
+    if (commandFlag >= 0 && parts[commandFlag + 1]) return parts[commandFlag + 1]!;
+  }
+  return parts.map(formatArg).join(" ");
+}
+
+function formatArg(value: string): string {
+  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) return value;
+  return JSON.stringify(value);
 }
 
 function readPatchPaths(b: Extract<ContentBlock, { type: "tool_use" }>): string[] {

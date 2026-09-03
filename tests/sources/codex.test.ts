@@ -223,7 +223,7 @@ describe("CodexAdapter parsing", () => {
     expect(session.project).toBe("github.com-acme-demo");
   });
 
-  it("keeps event-only tools in a rollout that also has response-item tools", () => {
+  it("keeps a different event-only tool inside a response span but suppresses its exact mirror", () => {
     const source = "/tmp/rollout-mixed-tools.jsonl";
     const id = "019f0000-bbbb-7000-8000-0000ffff0000";
     const rows: unknown[] = [
@@ -233,26 +233,22 @@ describe("CodexAdapter parsing", () => {
       { timestamp: "2026-01-01T00:00:01Z", type: "event_msg", payload: {
         type: "user_message", message: "exercise both tool lanes",
       } },
-      { timestamp: "2026-01-01T00:00:02Z", type: "event_msg", payload: {
-        type: "item_completed", item: {
-          type: "CommandExecution", id: "event-only", command: ["echo", "legacy"],
-          cwd: "/tmp/demo", aggregated_output: "legacy", status: "completed",
-        },
-      } },
-      ...Array.from({ length: 10 }, (_, i) => ({
-        timestamp: `2026-01-01T00:00:${String(i + 3).padStart(2, "0")}Z`,
-        type: "world_state", payload: { version: i },
-      })),
-      { timestamp: "2026-01-01T00:00:20Z", type: "response_item", payload: {
+      { timestamp: "2026-01-01T00:00:02Z", type: "response_item", payload: {
         type: "custom_tool_call", name: "exec", call_id: "response-tool", input: '{"cmd":"echo modern"}',
       } },
-      { timestamp: "2026-01-01T00:00:21Z", type: "event_msg", payload: {
+      { timestamp: "2026-01-01T00:00:03Z", type: "event_msg", payload: {
+        type: "item_completed", item: {
+          type: "CommandExecution", id: "event-only", command: ["echo", "different"],
+          cwd: "/tmp/demo", aggregated_output: "different", status: "completed",
+        },
+      } },
+      { timestamp: "2026-01-01T00:00:04Z", type: "event_msg", payload: {
         type: "item_completed", item: {
           type: "CommandExecution", id: "event-duplicate", command: ["echo", "modern"],
           cwd: "/tmp/demo", aggregated_output: "modern", status: "completed",
         },
       } },
-      { timestamp: "2026-01-01T00:00:22Z", type: "response_item", payload: {
+      { timestamp: "2026-01-01T00:00:05Z", type: "response_item", payload: {
         type: "custom_tool_call_output", call_id: "response-tool", output: "modern",
       } },
     ];
@@ -263,8 +259,8 @@ describe("CodexAdapter parsing", () => {
       .filter((block) => block.type === "tool_result");
     expect(uses).toHaveLength(2);
     expect(uses.map((block) => block.type === "tool_use" ? block.id : "")).toEqual([
-      "event-only",
       "response-tool",
+      "event-only",
     ]);
     expect(results).toHaveLength(2);
   });

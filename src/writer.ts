@@ -35,7 +35,8 @@ export function writeSession(
   const absDir = join(repoRoot, dirRel);
   mkdirSync(absDir, { recursive: true });
 
-  const base = `${s.nameSlug}__${s.shortId}`;
+  const storageId = s.tool === "codex" ? safeStorageId(s.sessionId) : s.shortId;
+  const base = `${s.nameSlug}__${storageId}`;
   const mdRel = join(dirRel, `${base}.md`);
 
   const includeReasoning = opts.includeReasoning ?? true;
@@ -48,6 +49,13 @@ export function writeSession(
   );
 
   return { md: mdRel };
+}
+
+function safeStorageId(sessionId: string): string {
+  return sessionId
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 interface RenderCtx {

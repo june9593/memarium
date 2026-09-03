@@ -82,13 +82,14 @@ describe("buildTocEntries — importance-based filtering", () => {
     const e = buildTocEntries(
       [a("", [
         tu("apply_patch", { patch: "*** Update File: src/config.ts" }),
-        tu("local_shell", { command: ["/bin/zsh", "-lc", 'git commit -m "update config"'] }),
+        tu("local_shell", { command: ["git", "commit", "-m", "update config"] }),
       ])],
       [12],
     );
     expect(e).toHaveLength(1);
     expect(e[0]!.markers).toBe("💾✏️");
     expect(e[0]!.preview).toContain("src/config.ts");
+    expect(e[0]!.preview).toContain('git commit -m "update config"');
   });
 
   it("preserves turn number as 1-based index", () => {
