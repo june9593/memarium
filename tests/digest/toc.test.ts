@@ -82,7 +82,7 @@ describe("buildTocEntries — importance-based filtering", () => {
     const e = buildTocEntries(
       [a("", [
         tu("apply_patch", { patch: "*** Update File: src/config.ts" }),
-        tu("exec_command", { cmd: 'git commit -m "update config"' }),
+        tu("local_shell", { command: ["/bin/zsh", "-lc", 'git commit -m "update config"'] }),
       ])],
       [12],
     );

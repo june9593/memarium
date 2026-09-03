@@ -104,13 +104,14 @@ function computePreview(m: SessionMessage): string {
 function readCommand(b: Extract<ContentBlock, { type: "tool_use" }>): string | null {
   const input = b.input as { command?: unknown; cmd?: unknown } | null;
   if (!input || typeof input !== "object") return null;
-  if (typeof input.command === "string") return input.command;
-  if (typeof input.cmd === "string") return input.cmd;
-  if (Array.isArray(input.cmd)) {
-    const parts = input.cmd.filter((part): part is string => typeof part === "string");
-    return parts.length > 0 ? parts.join(" ") : null;
-  }
-  return null;
+  return commandText(input.command) ?? commandText(input.cmd);
+}
+
+function commandText(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return null;
+  const parts = value.filter((part): part is string => typeof part === "string");
+  return parts.length > 0 ? parts.join(" ") : null;
 }
 
 function readEditPath(b: Extract<ContentBlock, { type: "tool_use" }>): string | null {
@@ -118,7 +119,7 @@ function readEditPath(b: Extract<ContentBlock, { type: "tool_use" }>): string | 
   if (!input || typeof input !== "object") return null;
   if (typeof input.file_path === "string") return input.file_path;
   if (typeof input.patch !== "string") return null;
-  return input.patch.match(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/m)?.[1]?.trim() ?? null;
+  return input.patch.match(/^\*\*\* (?:(?:Add|Update|Delete) File:|Move to:) (.+)$/m)?.[1]?.trim() ?? null;
 }
 
 function previewOf(text: string, max: number): string {

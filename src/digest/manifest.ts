@@ -106,19 +106,20 @@ function readFilePath(b: Extract<ContentBlock, { type: "tool_use" }>): string | 
 function readShellCommand(b: Extract<ContentBlock, { type: "tool_use" }>): string | null {
   const input = b.input as { command?: unknown; cmd?: unknown } | null;
   if (!input || typeof input !== "object") return null;
-  if (typeof input.command === "string") return input.command;
-  if (typeof input.cmd === "string") return input.cmd;
-  if (Array.isArray(input.cmd)) {
-    const parts = input.cmd.filter((part): part is string => typeof part === "string");
-    return parts.length > 0 ? parts.join(" ") : null;
-  }
-  return null;
+  return commandText(input.command) ?? commandText(input.cmd);
+}
+
+function commandText(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return null;
+  const parts = value.filter((part): part is string => typeof part === "string");
+  return parts.length > 0 ? parts.join(" ") : null;
 }
 
 function readPatchPaths(b: Extract<ContentBlock, { type: "tool_use" }>): string[] {
   const input = b.input as { patch?: unknown } | null;
   if (!input || typeof input !== "object" || typeof input.patch !== "string") return [];
-  return [...input.patch.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)]
+  return [...input.patch.matchAll(/^\*\*\* (?:(?:Add|Update|Delete) File:|Move to:) (.+)$/gm)]
     .map((match) => match[1]!.trim())
     .filter(Boolean);
 }

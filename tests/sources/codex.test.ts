@@ -132,6 +132,7 @@ describe("CodexAdapter parsing", () => {
     expect(session.messages.filter((message) => message.text === "I will inspect the retry path first.")).toHaveLength(1);
     expect(session.messages.filter((message) => message.text === "The retry policy is updated and tests pass.")).toHaveLength(1);
     expect(session.messages.some((message) => message.text.includes("Internal instructions"))).toBe(false);
+    expect(session.messages.some((message) => message.text.includes("Internal review instructions"))).toBe(false);
     expect(session.messages.some((message) => message.text.includes("private UI state"))).toBe(false);
 
     const thinking = session.messages.flatMap((message) => message.contentBlocks ?? [])
@@ -140,11 +141,19 @@ describe("CodexAdapter parsing", () => {
 
     const toolUses = session.messages.flatMap((message) => message.contentBlocks ?? [])
       .filter((block) => block.type === "tool_use");
-    expect(toolUses).toHaveLength(1);
+    expect(toolUses).toHaveLength(2);
     expect(toolUses[0]).toMatchObject({ name: "exec", id: "call-desktop-1", input: { cmd: "git status --short" } });
+    expect(toolUses[1]).toMatchObject({
+      name: "apply_patch",
+      id: "call-desktop-2",
+      input: { patch: expect.stringContaining("*** Move to: src/retry.ts") },
+    });
     const results = session.messages.flatMap((message) => message.contentBlocks ?? [])
       .filter((block) => block.type === "tool_result");
-    expect(results).toEqual([{ type: "tool_result", toolUseId: "call-desktop-1", content: " M src/retry.ts\ndone" }]);
+    expect(results).toEqual([
+      { type: "tool_result", toolUseId: "call-desktop-1", content: " M src/retry.ts\ndone" },
+      { type: "tool_result", toolUseId: "call-desktop-2", content: "Done!" },
+    ]);
   });
 
   it("parses interactive CLI, keeps short real prompts, response-only legacy text, and repeated turns", async () => {
@@ -159,6 +168,7 @@ describe("CodexAdapter parsing", () => {
     expect(userTexts).toEqual([
       "hi",
       "Please update the retry configuration.",
+      "Please preserve the visible request.",
       "run tests",
       "run tests",
     ]);
@@ -211,6 +221,52 @@ describe("CodexAdapter parsing", () => {
     writeFileSync(source, content);
     const session = parseCodexJsonl(source, content, new Map(), statSync(source).mtimeMs);
     expect(session.project).toBe("github.com-acme-demo");
+  });
+
+  it("keeps event-only tools in a rollout that also has response-item tools", () => {
+    const source = "/tmp/rollout-mixed-tools.jsonl";
+    const id = "019f0000-bbbb-7000-8000-0000ffff0000";
+    const rows: unknown[] = [
+      { timestamp: "2026-01-01T00:00:00Z", type: "session_meta", payload: {
+        id, cwd: "/tmp/demo", originator: "codex-tui", source: "cli",
+      } },
+      { timestamp: "2026-01-01T00:00:01Z", type: "event_msg", payload: {
+        type: "user_message", message: "exercise both tool lanes",
+      } },
+      { timestamp: "2026-01-01T00:00:02Z", type: "event_msg", payload: {
+        type: "item_completed", item: {
+          type: "CommandExecution", id: "event-only", command: ["echo", "legacy"],
+          cwd: "/tmp/demo", aggregated_output: "legacy", status: "completed",
+        },
+      } },
+      ...Array.from({ length: 10 }, (_, i) => ({
+        timestamp: `2026-01-01T00:00:${String(i + 3).padStart(2, "0")}Z`,
+        type: "world_state", payload: { version: i },
+      })),
+      { timestamp: "2026-01-01T00:00:20Z", type: "response_item", payload: {
+        type: "custom_tool_call", name: "exec", call_id: "response-tool", input: '{"cmd":"echo modern"}',
+      } },
+      { timestamp: "2026-01-01T00:00:21Z", type: "event_msg", payload: {
+        type: "item_completed", item: {
+          type: "CommandExecution", id: "event-duplicate", command: ["echo", "modern"],
+          cwd: "/tmp/demo", aggregated_output: "modern", status: "completed",
+        },
+      } },
+      { timestamp: "2026-01-01T00:00:22Z", type: "response_item", payload: {
+        type: "custom_tool_call_output", call_id: "response-tool", output: "modern",
+      } },
+    ];
+    const session = parseCodexJsonl(source, jsonl(...rows), new Map(), Date.parse("2026-01-01T00:00:00Z"));
+    const uses = session.messages.flatMap((message) => message.contentBlocks ?? [])
+      .filter((block) => block.type === "tool_use");
+    const results = session.messages.flatMap((message) => message.contentBlocks ?? [])
+      .filter((block) => block.type === "tool_result");
+    expect(uses).toHaveLength(2);
+    expect(uses.map((block) => block.type === "tool_use" ? block.id : "")).toEqual([
+      "event-only",
+      "response-tool",
+    ]);
+    expect(results).toHaveLength(2);
   });
 
   it("does not strip legitimate text merely because it contains a closing tag", () => {

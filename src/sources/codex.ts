@@ -304,6 +304,7 @@ export function parseCodexJsonl(
   const responseToolKeys = new Set<string>();
   const responseOutputKeys = new Set<string>();
   const eventTools: ProjectedMessage[] = [];
+  const responseToolSpans = new Map<string, { start: number; end: number }>();
 
   for (const record of records) {
     const subtype = stringValue(record.payload.type);
@@ -314,6 +315,11 @@ export function parseCodexJsonl(
         const text = sanitizeCodexText(extractText(record.payload.content));
         if (!text) continue;
         responseMessages.push(textMessage(record, role, text));
+      } else if (subtype === "agent_message") {
+        // ResponseItem::AgentMessage is inter-agent delivery: it always carries
+        // author + recipient, not user-visible assistant output. Keep it out of
+        // the transcript even when its input_text portion is readable.
+        continue;
       } else if (subtype === "reasoning") {
         const reasoning = reasoningText(record.payload);
         if (reasoning) responseReasoning.push(reasoningMessage(record, reasoning));
@@ -324,6 +330,7 @@ export function parseCodexJsonl(
           responseToolKeys.add(key);
           responseTools.push(projected);
         }
+        extendToolSpan(responseToolSpans, key, record.index);
       } else if (RESPONSE_TOOL_OUTPUTS.has(subtype)) {
         const projected = responseToolOutput(record);
         const key = projected.id ?? `${subtype}:${record.index}`;
@@ -331,6 +338,7 @@ export function parseCodexJsonl(
           responseOutputKeys.add(key);
           responseTools.push(projected);
         }
+        extendToolSpan(responseToolSpans, key, record.index);
       }
       continue;
     }
@@ -368,7 +376,8 @@ export function parseCodexJsonl(
   const messages = [
     ...mergeTextLanes(displayMessages, responseMessages),
     ...mergeReasoningLanes(responseReasoning, displayReasoning),
-    ...(responseTools.length > 0 ? responseTools : eventTools),
+    ...responseTools,
+    ...eventToolsOutsideResponseSpans(eventTools, responseToolSpans),
   ]
     .sort((a, b) => a.index - b.index || a.order - b.order)
     .map(toSessionMessage);
@@ -436,6 +445,39 @@ function mergeReasoningLanes(
   return out;
 }
 
+function extendToolSpan(
+  spans: Map<string, { start: number; end: number }>,
+  key: string,
+  index: number,
+): void {
+  const span = spans.get(key);
+  if (span) {
+    span.start = Math.min(span.start, index);
+    span.end = Math.max(span.end, index);
+  } else {
+    spans.set(key, { start: index, end: index });
+  }
+}
+
+/** Codex completion events do not carry the response call_id. The matching
+ * response call/output records bracket them in rollout order, so suppress only
+ * events inside that narrow span (plus one adjacent record). Event-only tools
+ * elsewhere in a mixed legacy/current rollout must survive. */
+function eventToolsOutsideResponseSpans(
+  eventTools: ProjectedMessage[],
+  spans: ReadonlyMap<string, { start: number; end: number }>,
+): ProjectedMessage[] {
+  const coveredEventIds = new Set<string>();
+  for (const event of eventTools) {
+    if (!event.id) continue;
+    const covered = [...spans.values()].some((span) =>
+      event.index >= span.start - 1 && event.index <= span.end + 1,
+    );
+    if (covered) coveredEventIds.add(event.id);
+  }
+  return eventTools.filter((event) => !event.id || !coveredEventIds.has(event.id));
+}
+
 function textMessage(
   record: CodexRecord,
   role: "user" | "assistant",
@@ -475,7 +517,12 @@ function responseToolCall(record: CodexRecord, subtype: string): ProjectedMessag
   let name = stringValue(payload.name);
   let input: unknown;
   if (subtype === "function_call") input = parseMaybeJson(payload.arguments);
-  else if (subtype === "custom_tool_call") input = parseMaybeJson(payload.input);
+  else if (subtype === "custom_tool_call") {
+    const parsed = parseMaybeJson(payload.input);
+    input = name === "apply_patch" && typeof parsed === "string"
+      ? { patch: parsed }
+      : parsed;
+  }
   else if (subtype === "local_shell_call") {
     name ||= "local_shell";
     input = payload.action ?? payload.command ?? {};
@@ -618,6 +665,10 @@ function sanitizeCodexText(text: string): string {
     const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     value = value.replace(new RegExp(`<${escaped}\\b[^>]*>[\\s\\S]*?<\\/${escaped}>`, "gi"), "");
   }
+  value = value.replace(
+    /^# AGENTS\.md instructions[^\n]*\r?\n\s*\r?\n<INSTRUCTIONS>[\s\S]*?<\/INSTRUCTIONS>\s*/i,
+    "",
+  );
   value = value.replace(/^# AGENTS\.md instructions[^\n]*\r?\n[\s\S]*?(?:\r?\n){2}/, "");
   if (/^# AGENTS\.md instructions/i.test(value.trimStart())) return "";
   if (/^<(?:environment_context|permissions|turn_aborted|subagent_notification)\b/i.test(value.trimStart())) return "";

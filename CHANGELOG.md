@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.16.2 — 2026-09-03
+
+### Harden current Codex tool and injected-context parsing
+
+- Accept `local_shell_call.action.command` string arrays in manifest/TOC shell
+  extraction.
+- Normalize raw custom `apply_patch` input and include `*** Move to:` rename
+  destinations in `files_touched`.
+- Strip the full current `# AGENTS.md ... <INSTRUCTIONS>` wrapper, including
+  multi-paragraph instructions, while preserving following user text.
+- Merge response and completed-event tool lanes per nearby invocation so mixed
+  rollouts retain older event-only tools without duplicating current response
+  calls. `ResponseItem::AgentMessage` remains intentionally excluded because it
+  is author/recipient inter-agent delivery, not visible assistant output.
+- Fix the duplicate marketing-page paragraph tag found during review.
+
 ## 0.16.1 — 2026-09-03
 
 ### Fix Windows non-git project paths (#37)
