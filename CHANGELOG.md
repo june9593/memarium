@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.16.0 — 2026-09-03
+
+### Add Codex Desktop and interactive Codex CLI JSONL sync
+
+- Add a third source adapter for active and archived `~/.codex` rollout JSONL,
+  shared by Codex Desktop and interactive Codex CLI. `codex exec` and explicit
+  subagent/guardian child threads are excluded by default.
+- Reconcile Codex display events with response items so injected context and
+  duplicate UI/protocol records do not become conversation turns; retain
+  plaintext reasoning and legacy/current/custom tool calls with structured
+  results.
+- Use the full Codex thread UUID as identity and a UUIDv7-safe tail shortId for
+  display. Resume lookup now accepts an exact stored shortId as well as a full
+  ID prefix.
+- Use remote-first project identity, latest append-only Codex titles, and
+  guarded cleanup when a title rename changes the rendered Markdown path.
+- Extend manifest/TOC extraction for Codex shell and `apply_patch` tools, and
+  verify existing cross-device aggregation accepts `tool: codex` unchanged.
+
 ## 0.15.2 — 2026-08-10
 
 ### Fix: CI aggregation compared `updatedAt` lexically, so a stale copy could win

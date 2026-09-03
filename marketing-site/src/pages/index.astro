@@ -4,20 +4,21 @@ import Base from "../layouts/Base.astro";
 <Base
   lang="en"
   title="memarium — sync + resume your AI coding sessions across machines"
-  description="The npm CLI half of memarium: sync Claude Code + Copilot Chat sessions to a private GitHub repo, then resume them on any machine. Companion to the memarium Claude Code plugin which adds digest + recall."
+  description="The npm CLI half of memarium: sync Claude Code, Copilot Chat, and Codex sessions to a private GitHub repo, then resume them on any machine. Companion to the memarium Claude Code plugin which adds digest + recall."
 >
   <section class="hero container">
     <h1>Your AI sessions, portable across every machine you code on.</h1>
     <p class="lede">
-      <strong>memarium</strong> is the npm CLI that syncs your Claude Code
-      and VS Code Copilot Chat sessions to a private GitHub repo, then lets
+      <strong>memarium</strong> is the npm CLI that syncs Claude Code,
+      VS Code Copilot Chat, Codex Desktop, and interactive Codex CLI sessions
+      to a private GitHub repo, then lets
       you <strong>resume</strong> any session on any machine. Pair it with
       the optional <a href="https://june9593.github.io/memarium-plugin/">memarium
       Claude Code plugin</a> for in-session digest + recall.
     </p>
     <div class="badges">
       <span class="badge">npm install -g <code>memarium</code></span>
-      <span class="badge">Claude Code · Copilot Chat</span>
+      <span class="badge">Claude Code · Copilot Chat · Codex</span>
       <span class="badge">MIT</span>
     </div>
     <div class="cta-row">
@@ -55,33 +56,30 @@ import Base from "../layouts/Base.astro";
       <div class="feature-card">
         <h3><code>memarium sync</code></h3>
         <p>
-          Walks <code>~/.claude/projects/</code> and your VS Code Copilot
-          Chat storage, copies new sessions into the spool (with the
-          original <code>.jsonl</code> preserved alongside rendered
-          <code>.md</code> + <code>.raw.json</code>), commits, and pushes
-          to a per-device branch on your private GitHub repo.
+          Walks Claude Code, VS Code Copilot Chat, and Codex Desktop /
+          interactive CLI storage, renders each source session as one
+          <code>.md</code>, then commits and pushes to a per-device branch
+          on your private GitHub repo.
         </p>
         <p>
-          Multi-device aware: each laptop pushes to its own branch and a
+          Multi-device aware: each machine pushes to its own branch and a
           GitHub Action deterministically merges them onto <code>main</code>.
-          Optional encryption via a transparent git clean/smudge filter —
-          your repo can be private without trusting GitHub with raw text.
+          Codex batch <code>exec</code> runs and internal child threads are
+          excluded from the default corpus.
         </p>
       </div>
       <div class="feature-card">
         <h3><code>memarium resume &lt;id&gt;</code></h3>
         <p>
-          Copies a session's <code>.jsonl</code> from the spool into
-          <code>~/.claude/projects/&lt;encoded-cwd&gt;/&lt;newId&gt;.jsonl</code>
-          and prints the <code>cd &lt;project&gt; &amp;&amp; claude --resume &lt;newId&gt;</code>
-          command to run.
+          Finds the rendered session Markdown and starts a fresh
+          <code>claude</code> process with that history as its first context.
+          Small sessions are embedded in full; large sessions use the manifest
+          and table of contents to navigate the on-disk file.
         </p>
         <p>
-          Each resume is a <strong>fork</strong> — the new copy gets a fresh
-          sessionId so two devices resuming the same source can continue
-          in parallel without colliding when their spools sync up. The fork's
-          origin is recorded so digest tooling can later group same-source
-          threads.
+          This works for every indexed source, including Codex and Copilot.
+          It does not mutate source JSONL or natively resume the original app's
+          internal thread.
         </p>
       </div>
     </div>
@@ -103,17 +101,14 @@ import Base from "../layouts/Base.astro";
       </p>
       <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">memarium sync                            # pull anything new from your other machines
 memarium list-sessions --since 2d        # find yesterday's session
-memarium resume 1f2c3d                   # copy + emit `claude --resume`</pre>
+memarium resume 1f2c3d                   # launch fresh Claude with prior context</pre>
       <p>
-        memarium fetches your laptop's branch, finds yesterday's session in
-        the spool, copies the <code>.jsonl</code> into the desktop's
-        <code>~/.claude/projects/</code>, rewrites <code>/Users/laptop-me</code>
-        paths to <code>/Users/desktop-me</code> (configured once via
-        <code>memarium config --map-path</code>), and prints:
+      <p>
+        memarium finds the rendered session in the aggregated spool, applies
+        your configured path map, and launches a fresh Claude Code session with
+        the prior conversation as context. The original source thread is left
+        untouched.
       </p>
-      <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">Session forked: 1f2c3d-... → 8a7b6c5d-...
-Continue with:
-  cd /Users/desktop-me/work/k8s-cluster &amp;&amp; claude --resume 8a7b6c5d-...</pre>
       <p>
         You run that. Claude opens with all 14 files still in context,
         the three ruled-out hypotheses still in the conversation, and
@@ -131,8 +126,8 @@ Continue with:
     <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">npm install -g memarium
 memarium init</pre>
     <p>
-      The wizard walks you through the private GitHub repo URL, optional
-      encryption setup, and per-device branch naming. After that,
+      The wizard walks you through the private GitHub repo URL, local-only
+      option, and per-device branch naming. After that,
       <code>memarium sync</code> on any machine pushes new sessions and
       pulls everyone else's, and <code>memarium resume &lt;id&gt;</code>
       lets you continue any of them locally.
@@ -156,9 +151,9 @@ memarium init</pre>
       </thead>
       <tbody>
         <tr><td><code>memarium init</code></td><td>Interactive wizard. Clones your private repo to <code>~/.memarium/session-repo/</code>, sets up the device branch.</td></tr>
-        <tr><td><code>memarium sync</code></td><td>Extract new Claude Code + Copilot sessions on this machine, commit, push.</td></tr>
+        <tr><td><code>memarium sync</code></td><td>Extract new Claude Code, Copilot Chat, and supported Codex sessions on this machine, commit, push.</td></tr>
         <tr><td><code>memarium list-sessions [--project] [--since] [--device]</code></td><td>List sessions in the spool, filterable for resume.</td></tr>
-        <tr><td><code>memarium resume &lt;sessionId&gt;</code></td><td>Fork a spool session into <code>~/.claude/projects/</code>, print <code>claude --resume</code> command.</td></tr>
+        <tr><td><code>memarium resume &lt;sessionId&gt;</code></td><td>Launch fresh Claude Code with a spool session as context.</td></tr>
         <tr><td><code>memarium config [--map-path FROM=TO]</code></td><td>Read or modify <code>~/.memarium/config.json</code> (e.g. cross-device path map).</td></tr>
         <tr><td><code>memarium list</code> · <code>show</code> · <code>cat</code></td><td>Browse the spool from the shell.</td></tr>
         <tr><td><code>memarium crypt &lt;action&gt;</code></td><td>Manage the git clean/smudge encryption filter.</td></tr>
@@ -174,15 +169,14 @@ memarium init</pre>
     <p>Everything lives under <code>~/.memarium/</code>:</p>
     <ul style="color: var(--olive-gray); padding-left: var(--space-6); font-family: var(--font-mono); font-size: 0.95rem;">
       <li><code>session-repo/</code> — git-tracked, pushes to your private GitHub repo</li>
-      <li><code>session-repo/raw_sessions/&lt;tool&gt;/&lt;project&gt;/&lt;date&gt;/*.&#123;md,raw.json,jsonl&#125;</code> — synced session copies plus the original <code>.jsonl</code> (preserved for resume)</li>
+      <li><code>session-repo/raw_sessions/&lt;tool&gt;/&lt;project&gt;/&lt;date&gt;/*.md</code> — one rendered Markdown file per source session</li>
       <li><code>session-repo/.memarium/index.json</code> — per-session entry index</li>
-      <li><code>config.json</code>, <code>passphrase</code>, <code>repo-salt.json</code> — CLI's local config</li>
-      <li><code>resume-forks.json</code> — registry mapping forked sessionIds to their origin</li>
+      <li><code>config.json</code> — CLI's local config</li>
     </ul>
     <p style="margin-top: var(--space-4);">
-      <code>book/</code> (chronicles + topics + the catalog) is written
-      by the optional Claude Code plugin, not the npm CLI. The CLI never
-      spawns an LLM — it's pure transport + I/O.
+      <code>memory/</code> and its typed-memory indexes are written by the
+      optional Claude Code plugin, not the npm CLI. The CLI never spawns an
+      LLM — it is pure transport + I/O.
     </p>
   </section>
 

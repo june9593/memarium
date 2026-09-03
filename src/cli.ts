@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import chalk from "chalk";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import type { Tool } from "./types.js";
 
 /** Read version straight from the bundled package.json so we can never
  *  ship a CLI whose --version lies. Two layouts to handle:
@@ -46,7 +47,7 @@ export async function run(argv: string[]) {
     });
   program
     .command("sync")
-    .description("Extract sessions from local Claude Code + VS Code Copilot Chat, commit + push to your device branch. No LLM call. Run /memarium in Claude Code afterward to digest.")
+    .description("Extract sessions from local Claude Code + VS Code Copilot Chat + Codex, commit + push to your device branch. No LLM call. Run /memarium in Claude Code afterward to digest.")
     .action(async () => {
       const { syncCmd } = await import("./commands/sync.js");
       await syncCmd();
@@ -91,9 +92,9 @@ export async function run(argv: string[]) {
   program
     .command("list")
     .description("List synced sessions")
-    .option("--tool <name>", "filter by claude|copilot")
+    .option("--tool <name>", "filter by claude|copilot|codex")
     .option("--project <name>", "filter by project")
-    .action(async (opts: { tool?: "claude"|"copilot"; project?: string }) => {
+    .action(async (opts: { tool?: Tool; project?: string }) => {
       const { listCmd } = await import("./commands/list.js");
       await listCmd(opts);
     });

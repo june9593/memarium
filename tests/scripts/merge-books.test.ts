@@ -20,7 +20,7 @@ const SCRIPT_PATH = new URL("../../assets/scripts/merge-books.mjs", import.meta.
 interface RawSessionSeed {
   /** e.g. "claude:abc12345-..." — the key in .memarium/index.json */
   sessionId: string;
-  tool: "claude" | "copilot";
+  tool: "claude" | "copilot" | "codex";
   project: string;
   startedAt: string;
   sourceMtimeMs: number;
@@ -293,6 +293,11 @@ describe("merge-books.mjs (memory aggregation)", () => {
           startedAt: "2026-04-20T11:00:00.000Z", sourceMtimeMs: 1_000_000,
           body: "# OLD body from Mac.lan\n",
         },
+        {
+          sessionId: "sess-codex-cccc", tool: "codex", project: "code-src",
+          startedAt: "2026-04-21T12:00:00.000Z", sourceMtimeMs: 1_500_000,
+          body: "# md from Codex Desktop\n",
+        },
       ],
     });
     await setupBranch({
@@ -316,9 +321,11 @@ describe("merge-books.mjs (memory aggregation)", () => {
     const macMd = join(workspace, "raw_sessions/claude/code-src/2026-04-20/seed__sess-mac.md");
     const miniMd = join(workspace, "raw_sessions/copilot/acme-web/2026-04-22/seed__sess-min.md");
     const sharedMd = join(workspace, "raw_sessions/claude/code-src/2026-04-20/seed__sess-sha.md");
+    const codexMd = join(workspace, "raw_sessions/codex/code-src/2026-04-21/seed__sess-cod.md");
     expect(existsSync(macMd)).toBe(true);
     expect(existsSync(miniMd)).toBe(true);
     expect(existsSync(sharedMd)).toBe(true);
+    expect(existsSync(codexMd)).toBe(true);
     // dedupe by tool:sessionId — Mac-mini's newer body wins for sess-shared
     expect(readFileSync(sharedMd, "utf8")).toContain("NEW body from Mac-mini");
 
@@ -329,11 +336,13 @@ describe("merge-books.mjs (memory aggregation)", () => {
     expect(Object.keys(agg.entries).sort()).toEqual([
       "claude:sess-mac-aaaa",
       "claude:sess-shared",
+      "codex:sess-codex-cccc",
       "copilot:sess-mini-bbbb",
     ]);
     // originDevice annotation lets consumers tell "which machine wrote this"
     expect(agg.entries["claude:sess-mac-aaaa"].originDevice).toBe("Mac.lan");
     expect(agg.entries["copilot:sess-mini-bbbb"].originDevice).toBe("Mac-mini");
+    expect(agg.entries["codex:sess-codex-cccc"].originDevice).toBe("Mac.lan");
     expect(agg.entries["claude:sess-shared"].originDevice).toBe("Mac-mini");
   }, T);
 

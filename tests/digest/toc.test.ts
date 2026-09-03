@@ -78,6 +78,19 @@ describe("buildTocEntries — importance-based filtering", () => {
     expect(e[0]!.preview).toBe("Edit src/foo.ts · Edit src/bar.ts");
   });
 
+  it("marks Codex apply_patch edits and shell commits", () => {
+    const e = buildTocEntries(
+      [a("", [
+        tu("apply_patch", { patch: "*** Update File: src/config.ts" }),
+        tu("exec_command", { cmd: 'git commit -m "update config"' }),
+      ])],
+      [12],
+    );
+    expect(e).toHaveLength(1);
+    expect(e[0]!.markers).toBe("💾✏️");
+    expect(e[0]!.preview).toContain("src/config.ts");
+  });
+
   it("preserves turn number as 1-based index", () => {
     const e = buildTocEntries(
       [

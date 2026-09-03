@@ -14,7 +14,8 @@ const ASSISTANT_TEXT_MIN = 200;
 const GIT_NOTEWORTHY_RE = /\bgit\s+(commit|tag)\b/;
 
 /** Tools that materially mutate the repo. */
-const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
+const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch"]);
+const SHELL_TOOLS = new Set(["Bash", "exec", "exec_command", "local_shell"]);
 
 /**
  * Build an importance-based TOC. Tool-result-only turns are skipped; what
@@ -60,7 +61,7 @@ function computeMarkers(m: SessionMessage): string {
     for (const b of m.contentBlocks ?? []) {
       if (b.type !== "tool_use") continue;
       if (EDIT_TOOLS.has(b.name)) hasEdit = true;
-      if (b.name === "Bash") {
+      if (SHELL_TOOLS.has(b.name)) {
         const cmd = readCommand(b);
         if (cmd && GIT_NOTEWORTHY_RE.test(cmd)) hasCommit = true;
       }
@@ -85,10 +86,10 @@ function computePreview(m: SessionMessage): string {
   for (const b of m.contentBlocks ?? []) {
     if (b.type !== "tool_use") continue;
     if (EDIT_TOOLS.has(b.name)) {
-      const fp = (b.input as { file_path?: unknown } | null)?.file_path;
-      if (typeof fp === "string") actions.push(`${b.name} ${fp}`);
+      const fp = readEditPath(b);
+      if (fp) actions.push(`${b.name} ${fp}`);
       else actions.push(b.name);
-    } else if (b.name === "Bash") {
+    } else if (SHELL_TOOLS.has(b.name)) {
       const cmd = readCommand(b);
       if (cmd) {
         const firstLine = cmd.split("\n", 1)[0]!.trim();
@@ -101,9 +102,23 @@ function computePreview(m: SessionMessage): string {
 }
 
 function readCommand(b: Extract<ContentBlock, { type: "tool_use" }>): string | null {
-  const input = b.input as { command?: unknown } | null;
+  const input = b.input as { command?: unknown; cmd?: unknown } | null;
   if (!input || typeof input !== "object") return null;
-  return typeof input.command === "string" ? input.command : null;
+  if (typeof input.command === "string") return input.command;
+  if (typeof input.cmd === "string") return input.cmd;
+  if (Array.isArray(input.cmd)) {
+    const parts = input.cmd.filter((part): part is string => typeof part === "string");
+    return parts.length > 0 ? parts.join(" ") : null;
+  }
+  return null;
+}
+
+function readEditPath(b: Extract<ContentBlock, { type: "tool_use" }>): string | null {
+  const input = b.input as { file_path?: unknown; patch?: unknown } | null;
+  if (!input || typeof input !== "object") return null;
+  if (typeof input.file_path === "string") return input.file_path;
+  if (typeof input.patch !== "string") return null;
+  return input.patch.match(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/m)?.[1]?.trim() ?? null;
 }
 
 function previewOf(text: string, max: number): string {
