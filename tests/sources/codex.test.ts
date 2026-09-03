@@ -91,7 +91,7 @@ describe("CodexAdapter discovery", () => {
 
     const found = await discover(root);
     expect(found).toHaveLength(1);
-    expect(found[0]!.sourcePath).toContain("/sessions/");
+    expect(found[0]!.sourcePath).toBe(join(activeDir, `rollout-${id}.jsonl`));
   });
 
   it("includes title and source location in the fingerprint", async () => {
@@ -244,8 +244,14 @@ describe("CodexAdapter parsing", () => {
       } },
       { timestamp: "2026-01-01T00:00:04Z", type: "event_msg", payload: {
         type: "item_completed", item: {
-          type: "CommandExecution", id: "event-duplicate", command: ["echo", "modern"],
-          cwd: "/tmp/demo", aggregated_output: "modern", status: "completed",
+          type: "CommandExecution", id: "event-duplicate-a", command: ["echo", "modern"],
+          cwd: "/tmp/demo", aggregated_output: "modern-a", status: "completed",
+        },
+      } },
+      { timestamp: "2026-01-01T00:00:04.500Z", type: "event_msg", payload: {
+        type: "item_completed", item: {
+          type: "CommandExecution", id: "event-duplicate-b", command: ["echo", "modern"],
+          cwd: "/tmp/demo", aggregated_output: "modern-b", status: "completed",
         },
       } },
       { timestamp: "2026-01-01T00:00:05Z", type: "response_item", payload: {
@@ -257,12 +263,79 @@ describe("CodexAdapter parsing", () => {
       .filter((block) => block.type === "tool_use");
     const results = session.messages.flatMap((message) => message.contentBlocks ?? [])
       .filter((block) => block.type === "tool_result");
+    expect(uses).toHaveLength(3);
+    const ids = uses.map((block) => block.type === "tool_use" ? block.id : "");
+    expect(ids).toContain("response-tool");
+    expect(ids).toContain("event-only");
+    expect(ids.filter((id) => id?.startsWith("event-duplicate-"))).toHaveLength(1);
+    expect(results).toHaveLength(3);
+  });
+
+  it("canonicalizes MCP names, namespaces, and object key order for tool correlation", () => {
+    const source = "/tmp/rollout-mcp-tools.jsonl";
+    const session = parseCodexJsonl(source, jsonl(
+      { timestamp: "2026-01-01T00:00:00Z", type: "session_meta", payload: {
+        id: "019f0000-cccc-7000-8000-000011112222", cwd: "/tmp/demo",
+        originator: "codex-tui", source: "cli",
+      } },
+      { timestamp: "2026-01-01T00:00:01Z", type: "response_item", payload: {
+        type: "function_call", name: "mcp__files__read", call_id: "read-call",
+        arguments: '{"path":"a.ts","line":1}',
+      } },
+      { timestamp: "2026-01-01T00:00:02Z", type: "event_msg", payload: {
+        type: "item_completed", item: {
+          type: "McpToolCall", id: "read-event", server: "files", tool: "read",
+          arguments: { line: 1, path: "a.ts" }, result: { content: "a" },
+        },
+      } },
+      { timestamp: "2026-01-01T00:00:03Z", type: "response_item", payload: {
+        type: "function_call_output", call_id: "read-call", output: "a",
+      } },
+      { timestamp: "2026-01-01T00:00:04Z", type: "response_item", payload: {
+        type: "function_call", namespace: "files", name: "write", call_id: "write-call",
+        arguments: '{"path":"b.ts","text":"b"}',
+      } },
+      { timestamp: "2026-01-01T00:00:05Z", type: "event_msg", payload: {
+        type: "item_completed", item: {
+          type: "McpToolCall", id: "write-event", server: "files", tool: "write",
+          arguments: { text: "b", path: "b.ts" }, result: { content: "ok" },
+        },
+      } },
+      { timestamp: "2026-01-01T00:00:06Z", type: "response_item", payload: {
+        type: "function_call_output", call_id: "write-call", output: "ok",
+      } },
+    ), new Map(), Date.parse("2026-01-01T00:00:00Z"));
+    const uses = session.messages.flatMap((message) => message.contentBlocks ?? [])
+      .filter((block) => block.type === "tool_use");
     expect(uses).toHaveLength(2);
-    expect(uses.map((block) => block.type === "tool_use" ? block.id : "")).toEqual([
-      "response-tool",
-      "event-only",
-    ]);
-    expect(results).toHaveLength(2);
+    expect(uses.map((block) => block.type === "tool_use" ? block.name : ""))
+      .toEqual(["files.read", "files.write"]);
+  });
+
+  it("keeps direct argv with different argument boundaries as distinct tools", () => {
+    const source = "/tmp/rollout-argv-tools.jsonl";
+    const session = parseCodexJsonl(source, jsonl(
+      { timestamp: "2026-01-01T00:00:00Z", type: "session_meta", payload: {
+        id: "019f0000-dddd-7000-8000-000033334444", cwd: "/tmp/demo",
+        originator: "codex-tui", source: "cli",
+      } },
+      { timestamp: "2026-01-01T00:00:01Z", type: "response_item", payload: {
+        type: "custom_tool_call", name: "exec", call_id: "argv-call",
+        input: '{"cmd":["echo","a b"]}',
+      } },
+      { timestamp: "2026-01-01T00:00:02Z", type: "event_msg", payload: {
+        type: "item_completed", item: {
+          type: "CommandExecution", id: "argv-event", command: ["echo", "a", "b"],
+          cwd: "/tmp/demo", aggregated_output: "a b", status: "completed",
+        },
+      } },
+      { timestamp: "2026-01-01T00:00:03Z", type: "response_item", payload: {
+        type: "custom_tool_call_output", call_id: "argv-call", output: "a b",
+      } },
+    ), new Map(), Date.parse("2026-01-01T00:00:00Z"));
+    const uses = session.messages.flatMap((message) => message.contentBlocks ?? [])
+      .filter((block) => block.type === "tool_use");
+    expect(uses).toHaveLength(2);
   });
 
   it("does not strip legitimate text merely because it contains a closing tag", () => {

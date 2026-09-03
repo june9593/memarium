@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.4 — 2026-09-03
+
+### Make Codex tool correlation one-to-one and canonical
+
+- Consume each matching response span after suppressing one completed-event
+  mirror, so a legitimately repeated identical event invocation remains.
+- Canonicalize `mcp__server__tool`, separate `namespace` + `name`, and
+  `server.tool` event forms to one rendered identity.
+- Sort object keys recursively before signature serialization and preserve
+  direct argv boundaries in signatures, preventing equivalent objects from
+  duplicating and distinct argv arrays from collapsing together.
+- Make the active-vs-archived adapter test separator-independent on Windows.
+
 ## 0.16.3 — 2026-09-03
 
 ### Close Codex collision and correlation gaps

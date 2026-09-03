@@ -476,14 +476,18 @@ function eventToolsOutsideResponseSpans(
   eventTools: ProjectedMessage[],
   spans: ReadonlyMap<string, ToolSpan>,
 ): ProjectedMessage[] {
+  const unmatchedSpans = [...spans.values()];
   const coveredEventIds = new Set<string>();
   for (const event of eventTools) {
     if (!event.id || !event.toolSignature) continue;
-    const covered = [...spans.values()].some((span) =>
+    const match = unmatchedSpans.findIndex((span) =>
       span.signature === event.toolSignature &&
       event.index >= span.start - 1 && event.index <= span.end + 1,
     );
-    if (covered) coveredEventIds.add(event.id);
+    if (match >= 0) {
+      coveredEventIds.add(event.id);
+      unmatchedSpans.splice(match, 1);
+    }
   }
   return eventTools.filter((event) => !event.id || !coveredEventIds.has(event.id));
 }
@@ -524,7 +528,7 @@ function reasoningMessage(
 function responseToolCall(record: CodexRecord, subtype: string): ProjectedMessage {
   const payload = record.payload;
   const id = stringValue(payload.call_id) || stringValue(payload.id) || undefined;
-  let name = stringValue(payload.name);
+  let name = responseToolName(payload);
   let input: unknown;
   if (subtype === "function_call") input = parseMaybeJson(payload.arguments);
   else if (subtype === "custom_tool_call") {
@@ -653,7 +657,10 @@ function extractText(value: unknown): string {
 }
 
 function toolSignature(name: string, input: unknown): string {
-  const family = ["exec", "exec_command", "local_shell"].includes(name) ? "shell" : name;
+  const canonicalName = canonicalToolName(name);
+  const family = ["exec", "exec_command", "local_shell"].includes(canonicalName)
+    ? "shell"
+    : canonicalName;
   if (family === "shell") {
     const command = toolCommandText(input);
     if (command) return `shell:${normalizeText(command)}`;
@@ -683,11 +690,48 @@ function commandTextForSignature(value: unknown): string | null {
     );
     if (commandFlag >= 0 && parts[commandFlag + 1]) return parts[commandFlag + 1]!;
   }
-  return parts.join(" ");
+  return parts.map(formatSignatureArg).join(" ");
+}
+
+function formatSignatureArg(value: string): string {
+  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) return value;
+  return JSON.stringify(value);
+}
+
+function responseToolName(payload: Record<string, unknown>): string {
+  const name = stringValue(payload.name);
+  const embedded = canonicalToolName(name);
+  if (embedded !== name) return embedded;
+  const namespace = canonicalToolName(stringValue(payload.namespace));
+  if (!namespace || name.startsWith(namespace + ".")) return name;
+  return name ? `${namespace}.${name}` : namespace;
+}
+
+function canonicalToolName(name: string): string {
+  const parts = name.split("__");
+  if (parts[0] === "mcp" && parts.length >= 3) {
+    return `${parts[1]}.${parts.slice(2).join("__")}`;
+  }
+  if (parts[0] === "mcp" && parts.length === 2) return parts[1]!;
+  return name;
 }
 
 function stableJson(value: unknown): string {
-  try { return JSON.stringify(value); } catch { return String(value); }
+  try {
+    return JSON.stringify(sortJsonValue(value)) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function sortJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortJsonValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, child]) => [key, sortJsonValue(child)]),
+  );
 }
 
 function flattenToolOutput(value: unknown): string {
