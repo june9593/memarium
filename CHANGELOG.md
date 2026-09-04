@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.8 — 2026-09-04
+
+### Filter hidden Codex context and repair legacy Windows index paths
+
+- Honor per-content `content_item_kinds` metadata and retain only `user.text`
+  items from response-role user messages. Legacy fallback stripping now covers
+  internal/goal/user-shell and dynamic external context wrappers.
+- Preserve event-only MCP failure details by falling back from missing `result`
+  to `error` and emitting the paired tool result.
+- Normalize loaded spool-index `relativePath` backslashes to `/`, so the next
+  sync repairs existing Windows Claude/Copilot/Codex entries rather than only
+  writing new sessions portably.
+
 ## 0.16.7 — 2026-09-04
 
 ### Preserve Codex image-generation traces

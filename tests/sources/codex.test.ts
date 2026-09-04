@@ -397,6 +397,64 @@ describe("CodexAdapter parsing", () => {
     expect(uses).toHaveLength(2);
   });
 
+  it("filters metadata-tagged and legacy synthetic user-context fragments", () => {
+    const source = "/tmp/rollout-context-fragments.jsonl";
+    const session = parseCodexJsonl(source, jsonl(
+      { timestamp: "2026-01-01T00:00:00Z", type: "session_meta", payload: {
+        id: "019f0001-1111-7000-8000-00009999aaaa", cwd: "/tmp/demo",
+        originator: "codex-tui", source: "cli",
+      } },
+      { timestamp: "2026-01-01T00:00:01Z", type: "response_item", payload: {
+        type: "message", role: "user", content: [
+          { type: "input_text", text: "hidden environment" },
+          { type: "input_text", text: "Keep the metadata-visible request." },
+          { type: "input_text", text: "hidden plugin recommendation" },
+        ],
+        internal_chat_message_metadata_passthrough: {
+          content_item_kinds: [
+            "environments.environment_context",
+            "user.text",
+            "plugins.recommendations",
+          ],
+        },
+      } },
+      { timestamp: "2026-01-01T00:00:02Z", type: "response_item", payload: {
+        type: "message", role: "user", content: [{ type: "input_text", text: [
+          '<codex_internal_context source="extension">secret</codex_internal_context>',
+          '<goal_context>hidden goal</goal_context>',
+          '<user_shell_command>hidden shell output</user_shell_command>',
+          '<external_connector_context>hidden connector data</external_connector_context>',
+          "Keep the legacy-visible request.",
+        ].join("\n") }],
+      } },
+    ), new Map(), Date.parse("2026-01-01T00:00:00Z"));
+    expect(session.messages.filter((message) => message.role === "user").map((message) => message.text))
+      .toEqual(["Keep the metadata-visible request.", "Keep the legacy-visible request."]);
+  });
+
+  it("preserves event-only MCP failure details as a paired tool result", () => {
+    const source = "/tmp/rollout-mcp-failure.jsonl";
+    const session = parseCodexJsonl(source, jsonl(
+      { timestamp: "2026-01-01T00:00:00Z", type: "session_meta", payload: {
+        id: "019f0001-2222-7000-8000-0000bbbbcccc", cwd: "/tmp/demo",
+        originator: "codex-tui", source: "cli",
+      } },
+      { timestamp: "2026-01-01T00:00:01Z", type: "event_msg", payload: {
+        type: "item_completed", item: {
+          type: "McpToolCall", id: "failed-mcp", server: "files", tool: "read",
+          arguments: { path: "missing.ts" }, status: "failed",
+          error: { message: "file not found", code: "ENOENT" },
+        },
+      } },
+    ), new Map(), Date.parse("2026-01-01T00:00:00Z"));
+    const blocks = session.messages.flatMap((message) => message.contentBlocks ?? []);
+    expect(blocks).toContainEqual({
+      type: "tool_result",
+      toolUseId: "failed-mcp",
+      content: expect.stringContaining("file not found"),
+    });
+  });
+
   it("does not strip legitimate text merely because it contains a closing tag", () => {
     const source = "/tmp/rollout-legitimate.jsonl";
     const content = jsonl(

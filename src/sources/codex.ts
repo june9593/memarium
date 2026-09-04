@@ -65,6 +65,17 @@ const SYNTHETIC_TAGS = [
   "subagent_notification",
   "recommended-plugin",
   "in-app-browser-context",
+  "codex_internal_context",
+  "goal_context",
+  "user_shell_command",
+  "recommended_plugins",
+  "skill",
+  "bash-input",
+  "bash-stdout",
+  "bash-stderr",
+  "model_switch",
+  "personality_spec",
+  "token_budget",
 ];
 
 const RESPONSE_TOOL_CALLS = new Set([
@@ -322,7 +333,10 @@ export function parseCodexJsonl(
       if (subtype === "message") {
         const role = stringValue(record.payload.role);
         if (role !== "user" && role !== "assistant") continue;
-        const text = sanitizeCodexText(extractText(record.payload.content));
+        const rawText = role === "user"
+          ? extractVisibleUserText(record.payload)
+          : extractText(record.payload.content);
+        const text = sanitizeCodexText(rawText);
         if (!text) continue;
         responseMessages.push(textMessage(record, role, text));
       } else if (subtype === "agent_message") {
@@ -678,7 +692,7 @@ function eventToolMessages(
     const tool = stringValue(item.tool) || "tool";
     name = server ? `${server}.${tool}` : tool;
     input = item.arguments ?? {};
-    output = item.result;
+    output = item.result ?? item.error;
   }
   const messages: ProjectedMessage[] = [{
     index: record.index,
@@ -713,6 +727,21 @@ function toSessionMessage(message: ProjectedMessage): SessionMessage {
   };
   if (message.reasoning) out.reasoning = message.reasoning;
   return out;
+}
+
+function extractVisibleUserText(payload: Record<string, unknown>): string {
+  const content = Array.isArray(payload.content) ? payload.content : [];
+  const passthrough = objectValue(
+    payload.internal_chat_message_metadata_passthrough ?? payload.metadata,
+  );
+  const kinds = Array.isArray(passthrough.content_item_kinds)
+    ? passthrough.content_item_kinds
+    : [];
+  if (kinds.length === 0) return extractText(content);
+  return content
+    .map((item, index) => kinds[index] === "user.text" ? extractText([item]) : "")
+    .filter(Boolean)
+    .join("\n");
 }
 
 function reasoningText(payload: Record<string, unknown>): string {
@@ -843,12 +872,17 @@ function sanitizeCodexText(text: string): string {
     value = value.replace(new RegExp(`<${escaped}\\b[^>]*>[\\s\\S]*?<\\/${escaped}>`, "gi"), "");
   }
   value = value.replace(
+    /<(external_[A-Za-z0-9_:-]+)\b[^>]*>[\s\S]*?<\/\1>/gi,
+    "",
+  );
+  value = value.replace(/<external_[A-Za-z0-9_:-]+\b[^>]*\/>/gi, "");
+  value = value.replace(
     /^# AGENTS\.md instructions[^\n]*\r?\n\s*\r?\n<INSTRUCTIONS>[\s\S]*?<\/INSTRUCTIONS>\s*/i,
     "",
   );
   value = value.replace(/^# AGENTS\.md instructions[^\n]*\r?\n[\s\S]*?(?:\r?\n){2}/, "");
   if (/^# AGENTS\.md instructions/i.test(value.trimStart())) return "";
-  if (/^<(?:environment_context|permissions|turn_aborted|subagent_notification)\b/i.test(value.trimStart())) return "";
+  if (/^<(?:environment_context|permissions|turn_aborted|subagent_notification|codex_internal_context|goal_context|user_shell_command|external_[A-Za-z0-9_:-]+)\b/i.test(value.trimStart())) return "";
   return value.trim();
 }
 

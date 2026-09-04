@@ -50,6 +50,22 @@ describe("index-store", () => {
     expect(reloaded.entries["claude:abc-123"]).toEqual(entry);
   });
 
+  it("normalizes legacy Windows relativePath separators when loading", () => {
+    mkdirSync(join(dir, ".memarium"), { recursive: true });
+    writeFileSync(join(dir, ".memarium/index.json"), JSON.stringify({
+      version: 1,
+      entries: {
+        "claude:abc-123": {
+          ...entry,
+          relativePath: "raw_sessions\\claude\\code-demo\\2026-04-17\\session.md",
+        },
+      },
+    }));
+    const loaded = loadIndex(dir);
+    expect(loaded.entries["claude:abc-123"]!.relativePath)
+      .toBe("raw_sessions/claude/code-demo/2026-04-17/session.md");
+  });
+
   it("hasUnchanged returns true when mtime+sha match AND file exists in working tree", () => {
     const idx = loadIndex(dir);
     upsertEntry(idx, entry);
