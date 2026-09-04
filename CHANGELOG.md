@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.9 — 2026-09-04
+
+### Synchronize the Codex/agent contributor guide
+
+Stop ignoring the local-only stale `AGENTS.md` and commit it as a mirror of the
+current `CLAUDE.md` contributor guide, so Codex and other AGENTS-aware tools see
+the same memarium architecture, paths, source adapters, release rules, and no-LLM
+boundary. A regression test requires both files to remain byte-identical.
+
 ## 0.16.8 — 2026-09-04
 
 ### Filter hidden Codex context and repair legacy Windows index paths
