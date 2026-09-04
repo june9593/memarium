@@ -64,6 +64,7 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
   let newCount = 0, skippedCount = 0;
   const pathsWritten: string[] = [];
   const pathsRemoved: string[] = [];
+  const pendingRemovals: { indexKey: string; previousPath: string }[] = [];
 
   for (const adapter of adapters) {
     for await (const d of adapter.discover()) {
@@ -90,13 +91,8 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
       const previousPath = idx.entries[indexKey]?.relativePath;
       const rel = writeSession(opts.repoPath, s, { includeReasoning: opts.includeReasoning });
       pathsWritten.push(rel.md);
-      if (previousPath && previousPath !== rel.md && removeSupersededRenderedSession(
-        opts.repoPath,
-        idx,
-        indexKey,
-        previousPath,
-      )) {
-        pathsRemoved.push(previousPath);
+      if (previousPath && previousPath !== rel.md) {
+        pendingRemovals.push({ indexKey, previousPath });
       }
 
       const entry: IndexEntry = {
@@ -138,6 +134,11 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
   }
 
   saveIndex(opts.repoPath, idx);
+  for (const { indexKey, previousPath } of pendingRemovals) {
+    if (removeSupersededRenderedSession(opts.repoPath, idx, indexKey, previousPath)) {
+      pathsRemoved.push(previousPath);
+    }
+  }
 
   let committed = false, pushed = false;
   if (opts.push && opts.repoUrl && opts.deviceBranch) {

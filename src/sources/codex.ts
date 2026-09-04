@@ -47,6 +47,8 @@ interface ToolSpan {
   start: number;
   end: number;
   signature?: string;
+  toolUseId?: string;
+  hasOutput: boolean;
 }
 
 const SYNTHETIC_TAGS = [
@@ -338,7 +340,10 @@ export function parseCodexJsonl(
           responseToolKeys.add(key);
           responseTools.push(projected);
         }
-        extendToolSpan(responseToolSpans, key, record.index, projected.toolSignature);
+        extendToolSpan(responseToolSpans, key, record.index, {
+          signature: projected.toolSignature,
+          toolUseId: projected.id,
+        });
       } else if (RESPONSE_TOOL_OUTPUTS.has(subtype)) {
         const projected = responseToolOutput(record);
         const key = projected.id ?? `${subtype}:${record.index}`;
@@ -346,7 +351,11 @@ export function parseCodexJsonl(
           responseOutputKeys.add(key);
           responseTools.push(projected);
         }
-        extendToolSpan(responseToolSpans, key, record.index);
+        extendToolSpan(responseToolSpans, key, record.index, {
+          hasOutput: projected.contentBlocks.some((block) =>
+            block.type === "tool_result" && block.content.length > 0,
+          ),
+        });
       }
       continue;
     }
@@ -457,15 +466,23 @@ function extendToolSpan(
   spans: Map<string, ToolSpan>,
   key: string,
   index: number,
-  signature?: string,
+  update: { signature?: string; toolUseId?: string; hasOutput?: boolean },
 ): void {
   const span = spans.get(key);
   if (span) {
     span.start = Math.min(span.start, index);
     span.end = Math.max(span.end, index);
-    if (signature) span.signature = signature;
+    if (update.signature) span.signature = update.signature;
+    if (update.toolUseId) span.toolUseId = update.toolUseId;
+    if (update.hasOutput) span.hasOutput = true;
   } else {
-    spans.set(key, { start: index, end: index, ...(signature ? { signature } : {}) });
+    spans.set(key, {
+      start: index,
+      end: index,
+      hasOutput: update.hasOutput ?? false,
+      ...(update.signature ? { signature: update.signature } : {}),
+      ...(update.toolUseId ? { toolUseId: update.toolUseId } : {}),
+    });
   }
 }
 
@@ -477,7 +494,7 @@ function eventToolsOutsideResponseSpans(
   spans: ReadonlyMap<string, ToolSpan>,
 ): ProjectedMessage[] {
   const unmatchedSpans = [...spans.values()];
-  const coveredEventIds = new Set<string>();
+  const matchedEvents = new Map<string, ToolSpan>();
   for (const event of eventTools) {
     if (!event.id || !event.toolSignature) continue;
     const match = unmatchedSpans.findIndex((span) =>
@@ -485,11 +502,30 @@ function eventToolsOutsideResponseSpans(
       event.index >= span.start - 1 && event.index <= span.end + 1,
     );
     if (match >= 0) {
-      coveredEventIds.add(event.id);
+      matchedEvents.set(event.id, unmatchedSpans[match]!);
       unmatchedSpans.splice(match, 1);
     }
   }
-  return eventTools.filter((event) => !event.id || !coveredEventIds.has(event.id));
+
+  const out: ProjectedMessage[] = [];
+  for (const event of eventTools) {
+    const span = event.id ? matchedEvents.get(event.id) : undefined;
+    if (!span) {
+      out.push(event);
+      continue;
+    }
+    const result = event.contentBlocks.find((block) => block.type === "tool_result");
+    if (!result || span.hasOutput) continue;
+    out.push({
+      ...event,
+      id: span.toolUseId ?? event.id,
+      contentBlocks: [{
+        ...result,
+        ...(span.toolUseId ? { toolUseId: span.toolUseId } : {}),
+      }],
+    });
+  }
+  return out;
 }
 
 function textMessage(
@@ -663,7 +699,7 @@ function toolSignature(name: string, input: unknown): string {
     : canonicalName;
   if (family === "shell") {
     const command = toolCommandText(input);
-    if (command) return `shell:${normalizeText(command)}`;
+    if (command) return `shell:${command.trim()}`;
   }
   if (family === "apply_patch") {
     const patch = objectValue(input).patch;

@@ -71,10 +71,10 @@ export async function resumeCmd(opts: ResumeOptions): Promise<ResumeResult> {
       `Multiple matches for '${opts.idOrPrefix}':`,
       ...matches.map(
         ({ entry: m, isOwn }) =>
-          `  ${m.shortId}  ${m.displayName.slice(0, 50)}  (${m.startedAt.slice(0, 10)})${isOwn ? "" : " [from another device]"}`,
+          `  ${m.sessionId}  [${m.shortId}]  ${m.displayName.slice(0, 50)}  (${m.startedAt.slice(0, 10)})${isOwn ? "" : " [from another device]"}`,
       ),
       ``,
-      `Pass a longer id prefix to disambiguate.`,
+      `Pass one of the full session ids above to disambiguate.`,
     ];
     throw new Error(lines.join("\n"));
   }

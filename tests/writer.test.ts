@@ -80,6 +80,8 @@ describe("writeSession (0.6 — single .md, frontmatter, content blocks)", () =>
     const firstPath = writeSession(repo, first).md;
     const secondPath = writeSession(repo, second).md;
     expect(firstPath).not.toBe(secondPath);
+    expect(firstPath).not.toContain("\\");
+    expect(secondPath).not.toContain("\\");
     expect(firstPath).toContain(first.sessionId);
     expect(secondPath).toContain(second.sessionId);
     expect(existsSync(join(repo, firstPath))).toBe(true);

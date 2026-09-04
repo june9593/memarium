@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, mkdirSync, existsSync, cpSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, existsSync, cpSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -186,6 +186,24 @@ describe("runSync — Codex JSONL", () => {
     expect(paths[0]).toContain(ids[0]!);
     expect(paths[1]).toContain(ids[1]!);
     expect(paths.every((path) => existsSync(join(repo, path)))).toBe(true);
+  });
+
+  it.skipIf(process.platform === "win32")("does not delete the indexed render when saving the replacement index fails", async () => {
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
+    const id = "019f0000-1111-7000-8000-0000aaaabbbb";
+    const indexPath = join(repo, ".memarium/index.json");
+    const oldPath = loadIndex(repo).entries[`codex:${id}`]!.relativePath;
+    const titleIndex = join(codexRoot, "session_index.jsonl");
+    writeFileSync(titleIndex, readFileSync(titleIndex, "utf8") + JSON.stringify({
+      id, thread_name: "Rename before failed save", updated_at: "2026-09-02T12:00:00Z",
+    }) + "\n");
+    chmodSync(indexPath, 0o444);
+    try {
+      await expect(runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot })).rejects.toThrow();
+      expect(existsSync(join(repo, oldPath))).toBe(true);
+    } finally {
+      chmodSync(indexPath, 0o644);
+    }
   });
 
   it("reimports a title-only rename and removes the superseded rendered file", async () => {

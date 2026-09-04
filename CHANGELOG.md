@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.16.5 — 2026-09-04
+
+### Preserve portable paths, shell results, and collision diagnostics
+
+- Persist writer `relativePath` values with `/` separators on every platform,
+  while using native joins only for filesystem writes. Windows-synced sessions
+  therefore remain valid `git show ref:path` inputs for aggregation/resume.
+- When a response `local_shell_call` mirrors a `CommandExecution`, suppress only
+  the duplicate use and preserve/remap the event's captured result if no response
+  output exists.
+- Preserve internal whitespace in shell correlation signatures so quoted argv
+  values with one versus two spaces remain distinct.
+- Show full session IDs in resume ambiguity errors for colliding Codex tail IDs.
+- Defer superseded-render deletion until the replacement index has persisted, so
+  a failed save cannot leave the stored index pointing at a deleted file.
+
 ## 0.16.4 — 2026-09-03
 
 ### Make Codex tool correlation one-to-one and canonical

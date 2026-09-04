@@ -338,6 +338,59 @@ describe("CodexAdapter parsing", () => {
     expect(uses).toHaveLength(2);
   });
 
+  it("keeps CommandExecution output when it mirrors a response local_shell_call", () => {
+    const source = "/tmp/rollout-local-shell.jsonl";
+    const session = parseCodexJsonl(source, jsonl(
+      { timestamp: "2026-01-01T00:00:00Z", type: "session_meta", payload: {
+        id: "019f0000-eeee-7000-8000-000055556666", cwd: "/tmp/demo",
+        originator: "codex-tui", source: "cli",
+      } },
+      { timestamp: "2026-01-01T00:00:01Z", type: "response_item", payload: {
+        type: "local_shell_call", call_id: "shell-call", status: "completed",
+        action: { command: ["echo", "hello"] },
+      } },
+      { timestamp: "2026-01-01T00:00:02Z", type: "event_msg", payload: {
+        type: "item_completed", item: {
+          type: "CommandExecution", id: "shell-event", command: ["echo", "hello"],
+          cwd: "/tmp/demo", aggregated_output: "hello\n", status: "completed",
+        },
+      } },
+    ), new Map(), Date.parse("2026-01-01T00:00:00Z"));
+    const blocks = session.messages.flatMap((message) => message.contentBlocks ?? []);
+    expect(blocks.filter((block) => block.type === "tool_use")).toEqual([
+      { type: "tool_use", name: "local_shell", input: { command: ["echo", "hello"] }, id: "shell-call" },
+    ]);
+    expect(blocks.filter((block) => block.type === "tool_result")).toEqual([
+      { type: "tool_result", content: "hello\n", toolUseId: "shell-call" },
+    ]);
+  });
+
+  it("preserves internal whitespace when correlating command signatures", () => {
+    const source = "/tmp/rollout-command-whitespace.jsonl";
+    const session = parseCodexJsonl(source, jsonl(
+      { timestamp: "2026-01-01T00:00:00Z", type: "session_meta", payload: {
+        id: "019f0000-ffff-7000-8000-000077778888", cwd: "/tmp/demo",
+        originator: "codex-tui", source: "cli",
+      } },
+      { timestamp: "2026-01-01T00:00:01Z", type: "response_item", payload: {
+        type: "custom_tool_call", name: "exec", call_id: "space-call",
+        input: '{"cmd":["printf","a  b"]}',
+      } },
+      { timestamp: "2026-01-01T00:00:02Z", type: "event_msg", payload: {
+        type: "item_completed", item: {
+          type: "CommandExecution", id: "space-event", command: ["printf", "a b"],
+          cwd: "/tmp/demo", aggregated_output: "a b", status: "completed",
+        },
+      } },
+      { timestamp: "2026-01-01T00:00:03Z", type: "response_item", payload: {
+        type: "custom_tool_call_output", call_id: "space-call", output: "a  b",
+      } },
+    ), new Map(), Date.parse("2026-01-01T00:00:00Z"));
+    const uses = session.messages.flatMap((message) => message.contentBlocks ?? [])
+      .filter((block) => block.type === "tool_use");
+    expect(uses).toHaveLength(2);
+  });
+
   it("does not strip legitimate text merely because it contains a closing tag", () => {
     const source = "/tmp/rollout-legitimate.jsonl";
     const content = jsonl(
