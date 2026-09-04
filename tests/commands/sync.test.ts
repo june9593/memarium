@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { runSync, ensureDeviceBranchOnConfig, readConfigWithMigration } from "../../src/commands/sync.js";
 import { loadIndex } from "../../src/index-store.js";
 import * as configModule from "../../src/config.js";
+import * as gitOpsModule from "../../src/git-ops.js";
 import type { Config } from "../../src/config.js";
 
 function baseCfg(overrides: Partial<Config> = {}): Config {
@@ -186,6 +187,47 @@ describe("runSync — Codex JSONL", () => {
     expect(paths[0]).toContain(ids[0]!);
     expect(paths[1]).toContain(ids[1]!);
     expect(paths.every((path) => existsSync(join(repo, path)))).toBe(true);
+  });
+
+  it("does not extract or replace the index when branch synchronization fails", async () => {
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
+    const id = "019f0000-1111-7000-8000-0000aaaabbbb";
+    const indexPath = join(repo, ".memarium/index.json");
+    const oldEntry = loadIndex(repo).entries[`codex:${id}`]!;
+    const titleIndex = join(codexRoot, "session_index.jsonl");
+    writeFileSync(titleIndex, readFileSync(titleIndex, "utf8") + JSON.stringify({
+      id, thread_name: "Rename before failed preflight", updated_at: "2026-09-02T12:00:00Z",
+    }) + "\n");
+
+    const { simpleGit } = await import("simple-git");
+    const git = simpleGit(repo);
+    await git.raw(["init", "-b", "device-test"]);
+    await git.addConfig("user.email", "test@example.com");
+    await git.addConfig("user.name", "Test");
+    await git.add(".");
+    await git.commit("seed");
+    await git.addRemote("origin", join(tmpdir(), "missing-memarium-remote.git"));
+    const fastForward = vi.spyOn(gitOpsModule, "fastForwardBranch")
+      .mockRejectedValue(new Error("forced preflight failure"));
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      const result = await runSync({
+        repoPath: repo,
+        claudeRoot,
+        vscodeRoot,
+        codexRoot,
+        push: true,
+        repoUrl: join(tmpdir(), "missing-memarium-remote.git"),
+        deviceBranch: "device-test",
+      });
+      expect(result).toMatchObject({ newCount: 0, committed: false, pushed: false });
+      const persisted = loadIndex(repo).entries[`codex:${id}`]!;
+      expect(persisted.relativePath).toBe(oldEntry.relativePath);
+      expect(existsSync(join(repo, oldEntry.relativePath))).toBe(true);
+    } finally {
+      fastForward.mockRestore();
+      log.mockRestore();
+    }
   });
 
   it.skipIf(process.platform === "win32")("does not delete the indexed render when saving the replacement index fails", async () => {

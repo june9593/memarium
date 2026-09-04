@@ -45,6 +45,36 @@ export interface SyncResult {
 }
 
 export async function runSync(opts: SyncOptions): Promise<SyncResult> {
+  let pushGit: Awaited<ReturnType<typeof ensureRepo>> | null = null;
+  if (opts.push && opts.repoUrl && opts.deviceBranch) {
+    console.log(chalk.gray(`
+Opening repo at ${opts.repoPath}...`));
+    pushGit = await ensureRepo(opts.repoPath, opts.repoUrl);
+    const mig = await migrateLegacyMainToDevice(opts.repoPath, opts.deviceBranch);
+    if (mig.migrated) {
+      console.log(chalk.cyan(`Migrated legacy 'main' branch to '${opts.deviceBranch}'. 'main' is now unborn locally.`));
+    }
+    try { await pushGit.fetch(); } catch { /* remote may be empty / offline */ }
+    console.log(chalk.gray(`Ensuring branch '${opts.deviceBranch}' is checked out...`));
+    await ensureDeviceBranch(pushGit, opts.deviceBranch);
+    try {
+      const ff = await fastForwardBranch(pushGit, opts.deviceBranch, (stage) => console.log(chalk.gray(`  ${stage}`)));
+      if (!ff.pulled && ff.reason === "no-tracking") {
+        console.log(chalk.gray(`  no remote ${opts.deviceBranch} yet — first push will create it`));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(chalk.red(`! could not sync local branch with origin: ${msg}`));
+      console.log(chalk.cyan(`  Skipping extraction and push. Resolve in ${opts.repoPath} and re-run \`memarium sync\`.`));
+      return {
+        newCount: 0,
+        skippedCount: 0,
+        pathsWritten: [],
+        committed: false,
+        pushed: false,
+      };
+    }
+  }
   // One-shot migration: rename the newest legacy data dir (`.vibebook/`, else
   // `.memvc/`) → `.memarium/` if present. Done before loadIndex so the read
   // picks up the file at its new location.
@@ -142,28 +172,7 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
 
   let committed = false, pushed = false;
   if (opts.push && opts.repoUrl && opts.deviceBranch) {
-    console.log(chalk.gray(`\nOpening repo at ${opts.repoPath}...`));
-    const git = await ensureRepo(opts.repoPath, opts.repoUrl);
-    const mig = await migrateLegacyMainToDevice(opts.repoPath, opts.deviceBranch);
-    if (mig.migrated) {
-      console.log(chalk.cyan(`Migrated legacy 'main' branch to '${opts.deviceBranch}'. 'main' is now unborn locally.`));
-    }
-    try { await git.fetch(); } catch { /* remote may be empty / offline */ }
-    console.log(chalk.gray(`Ensuring branch '${opts.deviceBranch}' is checked out...`));
-    await ensureDeviceBranch(git, opts.deviceBranch);
-    // Pull --rebase --autostash before committing, so CI's auto-commits on
-    // origin/<device> don't cause non-fast-forward push failures.
-    try {
-      const ff = await fastForwardBranch(git, opts.deviceBranch, (s) => console.log(chalk.gray(`  ${s}`)));
-      if (!ff.pulled && ff.reason === "no-tracking") {
-        console.log(chalk.gray(`  no remote ${opts.deviceBranch} yet — first push will create it`));
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.log(chalk.red(`! could not sync local branch with origin: ${msg}`));
-      console.log(chalk.cyan(`  Skipping push. Resolve in ${opts.repoPath} and re-run \`memarium sync\`.`));
-      return { newCount, skippedCount, pathsWritten, committed: false, pushed: false };
-    }
+    const git = pushGit!;
     const all = [...pathsWritten, ...pathsRemoved, INDEX_REL];
     if (dataDirMig.migrated && dataDirMig.viaGit) {
       for (const p of migratedDataDirPaths(opts.repoPath)) all.push(p);

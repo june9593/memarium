@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.16.6 — 2026-09-04
+
+### Preflight branch sync and reject ambiguous `show` short IDs
+
+- Complete repository/branch synchronization before any extraction, index write,
+  or stale-render cleanup. A failed `fastForwardBranch()` now returns with zero
+  extraction changes, so re-running reconstructs the complete write/removal set
+  instead of leaving an unstaged replacement behind.
+- Make `memarium show <shortId>` reject collisions and print every full session
+  ID, matching resume's collision-safe behavior.
+
 ## 0.16.5 — 2026-09-04
 
 ### Preserve portable paths, shell results, and collision diagnostics

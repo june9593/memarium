@@ -9,12 +9,21 @@ export async function showCmd(ref: string): Promise<void> {
   const cfg = readConfig();
   const idx = loadIndex(cfg.repoPath);
   const entries: IndexEntry[] = Object.values(idx.entries);
-  const hit = entries.find((e) =>
-    e.sessionId === ref ||
-    e.shortId === ref ||
-    e.nameSlug === ref ||
-    e.displayName === ref
-  );
+  let hit = entries.find((entry) => entry.sessionId === ref);
+  if (!hit) {
+    const shortMatches = entries.filter((entry) => entry.shortId === ref);
+    if (shortMatches.length > 1) {
+      console.log(chalk.red([
+        `ambiguous session shortId "${ref}":`,
+        ...shortMatches.map((entry) => `  ${entry.sessionId}  ${entry.displayName}`),
+        "use one of the full session IDs above",
+      ].join("\n")));
+      return;
+    }
+    hit = shortMatches[0] ?? entries.find((entry) =>
+      entry.nameSlug === ref || entry.displayName === ref
+    );
+  }
   if (!hit) {
     console.log(chalk.red(`no session matching "${ref}"`));
     return;
