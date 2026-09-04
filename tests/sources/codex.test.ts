@@ -141,18 +141,24 @@ describe("CodexAdapter parsing", () => {
 
     const toolUses = session.messages.flatMap((message) => message.contentBlocks ?? [])
       .filter((block) => block.type === "tool_use");
-    expect(toolUses).toHaveLength(2);
+    expect(toolUses).toHaveLength(3);
     expect(toolUses[0]).toMatchObject({ name: "exec", id: "call-desktop-1", input: { cmd: "git status --short" } });
     expect(toolUses[1]).toMatchObject({
       name: "apply_patch",
       id: "call-desktop-2",
       input: { patch: expect.stringContaining("*** Move to: src/retry.ts") },
     });
+    expect(toolUses[2]).toMatchObject({
+      name: "image_generation",
+      id: "image-call-1",
+      input: { prompt: "A compact retry-state diagram" },
+    });
     const results = session.messages.flatMap((message) => message.contentBlocks ?? [])
       .filter((block) => block.type === "tool_result");
     expect(results).toEqual([
       { type: "tool_result", toolUseId: "call-desktop-1", content: " M src/retry.ts\ndone" },
       { type: "tool_result", toolUseId: "call-desktop-2", content: "Done!" },
+      { type: "tool_result", toolUseId: "image-call-1", content: "data:image/png;base64,QUJDREVGRw==" },
     ]);
   });
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.7 — 2026-09-04
+
+### Preserve Codex image-generation traces
+
+Project `response_item.image_generation_call` into an `image_generation`
+`tool_use` with the revised prompt and a paired `tool_result` carrying the
+generated result. Large image payloads flow through the writer's existing
+tool-result truncation. A current-schema Desktop fixture locks the pair.
+
 ## 0.16.6 — 2026-09-04
 
 ### Preflight branch sync and reject ambiguous `show` short IDs
