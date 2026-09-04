@@ -1,11 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join, resolve, sep } from "node:path";
 import chalk from "chalk";
 import { ClaudeCodeAdapter } from "../sources/claude-code.js";
 import { VSCodeCopilotAdapter } from "../sources/vscode-copilot.js";
+import { CodexAdapter } from "../sources/codex.js";
 import type { SourceAdapter } from "../sources/base.js";
-import { loadIndex, saveIndex, hasUnchanged, upsertEntry } from "../index-store.js";
-import type { IndexEntry } from "../types.js";
+import { loadIndex, saveIndex, hasUnchanged, keyFor, upsertEntry } from "../index-store.js";
+import type { IndexEntry, IndexFile } from "../types.js";
 import { writeSession } from "../writer.js";
 import { readConfig, writeConfig, type Config } from "../config.js";
 import { deviceBranchFromHostname } from "../device.js";
@@ -14,8 +15,8 @@ import { migrateLegacyMainToDevice, migrateLegacyDataDir, migratedDataDirPaths }
 import { INDEX_REL } from "../repo-data-dir.js";
 
 /**
- * `memarium sync` — extract jsonl from local sources (Claude Code + VS Code
- * Copilot Chat), write per-session raw + md to the user's git repo as
+ * `memarium sync` — extract jsonl from local sources (Claude Code, VS Code
+ * Copilot Chat, and Codex), write one rendered Markdown file per session as
  * **plaintext**, then commit + push to the device branch.
  *
  * memarium v0.2 explicitly does NOT call any LLM here. The memory-writing
@@ -26,6 +27,7 @@ export interface SyncOptions {
   repoPath: string;
   claudeRoot?: string;
   vscodeRoot?: string;
+  codexRoot?: string;
   push?: boolean;
   repoUrl?: string;
   deviceBranch?: string;
@@ -43,6 +45,36 @@ export interface SyncResult {
 }
 
 export async function runSync(opts: SyncOptions): Promise<SyncResult> {
+  let pushGit: Awaited<ReturnType<typeof ensureRepo>> | null = null;
+  if (opts.push && opts.repoUrl && opts.deviceBranch) {
+    console.log(chalk.gray(`
+Opening repo at ${opts.repoPath}...`));
+    pushGit = await ensureRepo(opts.repoPath, opts.repoUrl);
+    const mig = await migrateLegacyMainToDevice(opts.repoPath, opts.deviceBranch);
+    if (mig.migrated) {
+      console.log(chalk.cyan(`Migrated legacy 'main' branch to '${opts.deviceBranch}'. 'main' is now unborn locally.`));
+    }
+    try { await pushGit.fetch(); } catch { /* remote may be empty / offline */ }
+    console.log(chalk.gray(`Ensuring branch '${opts.deviceBranch}' is checked out...`));
+    await ensureDeviceBranch(pushGit, opts.deviceBranch);
+    try {
+      const ff = await fastForwardBranch(pushGit, opts.deviceBranch, (stage) => console.log(chalk.gray(`  ${stage}`)));
+      if (!ff.pulled && ff.reason === "no-tracking") {
+        console.log(chalk.gray(`  no remote ${opts.deviceBranch} yet — first push will create it`));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(chalk.red(`! could not sync local branch with origin: ${msg}`));
+      console.log(chalk.cyan(`  Skipping extraction and push. Resolve in ${opts.repoPath} and re-run \`memarium sync\`.`));
+      return {
+        newCount: 0,
+        skippedCount: 0,
+        pathsWritten: [],
+        committed: false,
+        pushed: false,
+      };
+    }
+  }
   // One-shot migration: rename the newest legacy data dir (`.vibebook/`, else
   // `.memvc/`) → `.memarium/` if present. Done before loadIndex so the read
   // picks up the file at its new location.
@@ -54,12 +86,15 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
   const adapters: SourceAdapter[] = [
     new ClaudeCodeAdapter(opts.claudeRoot),
     new VSCodeCopilotAdapter(opts.vscodeRoot),
+    new CodexAdapter(opts.codexRoot),
   ];
 
   const idx = loadIndex(opts.repoPath);
 
   let newCount = 0, skippedCount = 0;
   const pathsWritten: string[] = [];
+  const pathsRemoved: string[] = [];
+  const pendingRemovals: { indexKey: string; previousPath: string }[] = [];
 
   for (const adapter of adapters) {
     for await (const d of adapter.discover()) {
@@ -82,8 +117,13 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
         skippedCount++;
         continue;
       }
+      const indexKey = keyFor(s.tool, s.sessionId);
+      const previousPath = idx.entries[indexKey]?.relativePath;
       const rel = writeSession(opts.repoPath, s, { includeReasoning: opts.includeReasoning });
       pathsWritten.push(rel.md);
+      if (previousPath && previousPath !== rel.md) {
+        pendingRemovals.push({ indexKey, previousPath });
+      }
 
       const entry: IndexEntry = {
         sessionId: s.sessionId,
@@ -124,32 +164,16 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
   }
 
   saveIndex(opts.repoPath, idx);
+  for (const { indexKey, previousPath } of pendingRemovals) {
+    if (removeSupersededRenderedSession(opts.repoPath, idx, indexKey, previousPath)) {
+      pathsRemoved.push(previousPath);
+    }
+  }
 
   let committed = false, pushed = false;
   if (opts.push && opts.repoUrl && opts.deviceBranch) {
-    console.log(chalk.gray(`\nOpening repo at ${opts.repoPath}...`));
-    const git = await ensureRepo(opts.repoPath, opts.repoUrl);
-    const mig = await migrateLegacyMainToDevice(opts.repoPath, opts.deviceBranch);
-    if (mig.migrated) {
-      console.log(chalk.cyan(`Migrated legacy 'main' branch to '${opts.deviceBranch}'. 'main' is now unborn locally.`));
-    }
-    try { await git.fetch(); } catch { /* remote may be empty / offline */ }
-    console.log(chalk.gray(`Ensuring branch '${opts.deviceBranch}' is checked out...`));
-    await ensureDeviceBranch(git, opts.deviceBranch);
-    // Pull --rebase --autostash before committing, so CI's auto-commits on
-    // origin/<device> don't cause non-fast-forward push failures.
-    try {
-      const ff = await fastForwardBranch(git, opts.deviceBranch, (s) => console.log(chalk.gray(`  ${s}`)));
-      if (!ff.pulled && ff.reason === "no-tracking") {
-        console.log(chalk.gray(`  no remote ${opts.deviceBranch} yet — first push will create it`));
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.log(chalk.red(`! could not sync local branch with origin: ${msg}`));
-      console.log(chalk.cyan(`  Skipping push. Resolve in ${opts.repoPath} and re-run \`memarium sync\`.`));
-      return { newCount, skippedCount, pathsWritten, committed: false, pushed: false };
-    }
-    const all = [...pathsWritten, INDEX_REL];
+    const git = pushGit!;
+    const all = [...pathsWritten, ...pathsRemoved, INDEX_REL];
     if (dataDirMig.migrated && dataDirMig.viaGit) {
       for (const p of migratedDataDirPaths(opts.repoPath)) all.push(p);
     }
@@ -232,6 +256,27 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
   }
 
   return { newCount, skippedCount, pathsWritten, committed, pushed };
+}
+
+function removeSupersededRenderedSession(
+  repoPath: string,
+  idx: IndexFile,
+  currentKey: string,
+  previousPath: string,
+): boolean {
+  const rawRoot = resolve(repoPath, "raw_sessions");
+  const previousAbs = resolve(repoPath, previousPath);
+  if (!previousAbs.startsWith(rawRoot + sep)) return false;
+  const shared = Object.entries(idx.entries).some(([key, entry]) =>
+    key !== currentKey && entry.relativePath === previousPath,
+  );
+  if (shared || !existsSync(previousAbs)) return false;
+  try {
+    rmSync(previousAbs);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

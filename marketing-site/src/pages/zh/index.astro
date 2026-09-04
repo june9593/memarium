@@ -4,20 +4,21 @@ import Base from "../../layouts/Base.astro";
 <Base
   lang="zh"
   title="memarium — 跨机器同步并 resume 你的 AI 编程会话"
-  description="memarium 的 npm CLI 部分：把 Claude Code 与 VS Code Copilot Chat 会话同步到私有 GitHub repo,然后在任意机器上 resume。配合可选的 memarium Claude Code 插件可加上 digest + recall。"
+  description="memarium 的 npm CLI 部分：把 Claude Code、VS Code Copilot Chat 与 Codex 会话同步到私有 GitHub repo,然后在任意机器上 resume。配合可选的 memarium Claude Code 插件可加上 digest + recall。"
 >
   <section class="hero container">
     <h1>把 AI 会话变成跨机器可携带的工具。</h1>
     <p class="lede">
-      <strong>memarium</strong> 是一个 npm CLI,把你的 Claude Code 与 VS
-      Code Copilot Chat 会话同步到一个私有 GitHub repo,然后让你能在任何
+      <strong>memarium</strong> 是一个 npm CLI,把你的 Claude Code、VS
+      Code Copilot Chat、Codex Desktop 与交互式 Codex CLI 会话同步到一个
+      私有 GitHub repo,然后让你能在任何
       机器上 <strong>resume</strong> 任意一段会话。配合可选的
       <a href="https://june9593.github.io/memarium-plugin/">memarium Claude
       Code 插件</a>,还能在会话内做 digest + recall。
     </p>
     <div class="badges">
       <span class="badge">npm install -g <code>memarium</code></span>
-      <span class="badge">Claude Code · Copilot Chat</span>
+      <span class="badge">Claude Code · Copilot Chat · Codex</span>
       <span class="badge">MIT</span>
     </div>
     <div class="cta-row">
@@ -52,31 +53,26 @@ import Base from "../../layouts/Base.astro";
       <div class="feature-card">
         <h3><code>memarium sync</code></h3>
         <p>
-          扫描 <code>~/.claude/projects/</code> 与 VS Code Copilot Chat
-          存储,把新会话复制到 spool(原始 <code>.jsonl</code> 与渲染
-          <code>.md</code> + <code>.raw.json</code> 一起保留),提交,
+          扫描 Claude Code、VS Code Copilot Chat 与 Codex Desktop /
+          交互式 CLI 存储,把每段源会话渲染为一个 <code>.md</code>,提交并
           推到你私有 GitHub repo 的设备分支。
         </p>
         <p>
-          多设备感知:每台笔记本推自己的分支,GitHub Action 在
-          <code>main</code> 上做确定性合并。可选的加密 — 通过透明的
-          git clean/smudge filter,你的 repo 可以是 private 而不必把
-          原文交给 GitHub。
+          多设备感知:每台机器推自己的分支,GitHub Action 在
+          <code>main</code> 上做确定性合并。默认排除 Codex
+          <code>exec</code> 批处理与内部子线程。
         </p>
       </div>
       <div class="feature-card">
         <h3><code>memarium resume &lt;id&gt;</code></h3>
         <p>
-          把会话的 <code>.jsonl</code> 从 spool 复制到
-          <code>~/.claude/projects/&lt;encoded-cwd&gt;/&lt;newId&gt;.jsonl</code>,
-          打印出 <code>cd &lt;project&gt; &amp;&amp; claude --resume &lt;newId&gt;</code>
-          命令让你跑。
+          找到渲染后的会话 Markdown,启动一个新的 <code>claude</code>
+          进程,把历史作为第一段上下文。小会话完整嵌入;大会话用 manifest
+          与目录定位磁盘上的正文。
         </p>
         <p>
-          每次 resume 都是一次 <strong>fork</strong> — 这台机器上的副本
-          会拿到一个新的 sessionId,这样两台设备 resume 同一个源会话时
-          可以独立继续,spool 同步时不会撞 id。fork 的 origin 会被记录,
-          digest 工具之后可以把同源 thread 关联起来。
+          所有已索引来源都能这样继续,包括 Codex 与 Copilot。它不会改写
+          源 JSONL,也不会原生恢复原应用内部的 thread。
         </p>
       </div>
     </div>
@@ -96,17 +92,12 @@ import Base from "../../layouts/Base.astro";
       </p>
       <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">memarium sync                            # 拉其他机器上的新会话
 memarium list-sessions --since 2d        # 找昨天那段
-memarium resume 1f2c3d                   # 复制 + 打印 `claude --resume`</pre>
+memarium resume 1f2c3d                   # 带着旧上下文启动新 Claude</pre>
       <p>
-        memarium 拉笔记本的分支,在 spool 里找到昨天那段会话,把
-        <code>.jsonl</code> 复制到台式机的 <code>~/.claude/projects/</code>,
-        把 <code>/Users/laptop-me</code> 路径改写成
-        <code>/Users/desktop-me</code>(通过 <code>memarium config --map-path</code>
-        一次配置过),然后打印:
+        memarium 在聚合后的 spool 里找到渲染会话,应用你配置过的路径映射,
+        然后启动一个新的 Claude Code 会话并把旧对话作为上下文。原始来源
+        thread 保持不变。
       </p>
-      <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">Session forked: 1f2c3d-... → 8a7b6c5d-...
-Continue with:
-  cd /Users/desktop-me/work/k8s-cluster &amp;&amp; claude --resume 8a7b6c5d-...</pre>
       <p>
         你跑那条。Claude 启动起来,14 个文件还在上下文里,三个被排除的
         假设还在对话里,时钟偏差的线索等着你下一句 prompt。你不重新解释。
@@ -122,7 +113,7 @@ Continue with:
     <pre style="background: var(--deep-dark); color: var(--ivory); padding: var(--space-5); border-radius: var(--r-md);">npm install -g memarium
 memarium init</pre>
     <p>
-      wizard 会引导你过一遍私有 GitHub repo URL、可选加密、设备分支命名。
+      wizard 会引导你过一遍私有 GitHub repo URL、本地模式选项、设备分支命名。
       之后每台机器上的 <code>memarium sync</code> 推自己的新会话、拉别人
       的,<code>memarium resume &lt;id&gt;</code> 让你本地接着任意一段。
     </p>
@@ -145,9 +136,9 @@ memarium init</pre>
       </thead>
       <tbody>
         <tr><td><code>memarium init</code></td><td>交互式 wizard。clone 你的私有 repo 到 <code>~/.memarium/session-repo/</code>,设置设备分支。</td></tr>
-        <tr><td><code>memarium sync</code></td><td>抽取这台机器上新的 Claude Code + Copilot 会话,提交,推送。</td></tr>
+        <tr><td><code>memarium sync</code></td><td>抽取这台机器上新的 Claude Code、Copilot Chat 与受支持的 Codex 会话,提交,推送。</td></tr>
         <tr><td><code>memarium list-sessions [--project] [--since] [--device]</code></td><td>列出 spool 里的会话,可按条件过滤,用于挑选 resume 目标。</td></tr>
-        <tr><td><code>memarium resume &lt;sessionId&gt;</code></td><td>把 spool 里的会话 fork 到 <code>~/.claude/projects/</code>,打印 <code>claude --resume</code> 命令。</td></tr>
+        <tr><td><code>memarium resume &lt;sessionId&gt;</code></td><td>带着 spool 会话上下文启动新的 Claude Code。</td></tr>
         <tr><td><code>memarium config [--map-path FROM=TO]</code></td><td>读 / 改 <code>~/.memarium/config.json</code>(比如跨设备 path 映射)。</td></tr>
         <tr><td><code>memarium list</code> · <code>show</code> · <code>cat</code></td><td>从 shell 浏览 spool。</td></tr>
         <tr><td><code>memarium crypt &lt;action&gt;</code></td><td>管理 git clean/smudge 加密 filter。</td></tr>
@@ -163,14 +154,13 @@ memarium init</pre>
     <p>所有东西都在 <code>~/.memarium/</code> 下:</p>
     <ul style="color: var(--olive-gray); padding-left: var(--space-6); font-family: var(--font-mono); font-size: 0.95rem;">
       <li><code>session-repo/</code> — git 跟踪,推到你的私有 GitHub repo</li>
-      <li><code>session-repo/raw_sessions/&lt;tool&gt;/&lt;project&gt;/&lt;date&gt;/*.&#123;md,raw.json,jsonl&#125;</code> — 同步过来的会话副本加上原始 <code>.jsonl</code>(给 resume 用)</li>
+      <li><code>session-repo/raw_sessions/&lt;tool&gt;/&lt;project&gt;/&lt;date&gt;/*.md</code> — 每段源会话一个渲染后的 Markdown</li>
       <li><code>session-repo/.memarium/index.json</code> — 单会话条目索引</li>
-      <li><code>config.json</code>、<code>passphrase</code>、<code>repo-salt.json</code> — CLI 本地配置</li>
-      <li><code>resume-forks.json</code> — 记录 fork 出来的 sessionId 与其 origin 的对应关系</li>
+      <li><code>config.json</code> — CLI 本地配置</li>
     </ul>
     <p style="margin-top: var(--space-4);">
-      <code>book/</code>(chronicles + topics + 目录)是可选的 Claude Code
-      插件写的,不是 npm CLI。CLI 不会启动 LLM — 它只是 transport + I/O。
+      <code>memory/</code> 与 typed-memory 索引由可选的 Claude Code
+      插件写入,不是 npm CLI。CLI 不会启动 LLM — 它只是 transport + I/O。
     </p>
   </section>
 

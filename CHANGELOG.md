@@ -1,5 +1,131 @@
 # Changelog
 
+## 0.16.8 — 2026-09-04
+
+### Filter hidden Codex context and repair legacy Windows index paths
+
+- Honor per-content `content_item_kinds` metadata and retain only `user.text`
+  items from response-role user messages. Legacy fallback stripping now covers
+  internal/goal/user-shell and dynamic external context wrappers.
+- Preserve event-only MCP failure details by falling back from missing `result`
+  to `error` and emitting the paired tool result.
+- Normalize loaded spool-index `relativePath` backslashes to `/`, so the next
+  sync repairs existing Windows Claude/Copilot/Codex entries rather than only
+  writing new sessions portably.
+
+## 0.16.7 — 2026-09-04
+
+### Preserve Codex image-generation traces
+
+Project `response_item.image_generation_call` into an `image_generation`
+`tool_use` with the revised prompt and a paired `tool_result` carrying the
+generated result. Large image payloads flow through the writer's existing
+tool-result truncation. A current-schema Desktop fixture locks the pair.
+
+## 0.16.6 — 2026-09-04
+
+### Preflight branch sync and reject ambiguous `show` short IDs
+
+- Complete repository/branch synchronization before any extraction, index write,
+  or stale-render cleanup. A failed `fastForwardBranch()` now returns with zero
+  extraction changes, so re-running reconstructs the complete write/removal set
+  instead of leaving an unstaged replacement behind.
+- Make `memarium show <shortId>` reject collisions and print every full session
+  ID, matching resume's collision-safe behavior.
+
+## 0.16.5 — 2026-09-04
+
+### Preserve portable paths, shell results, and collision diagnostics
+
+- Persist writer `relativePath` values with `/` separators on every platform,
+  while using native joins only for filesystem writes. Windows-synced sessions
+  therefore remain valid `git show ref:path` inputs for aggregation/resume.
+- When a response `local_shell_call` mirrors a `CommandExecution`, suppress only
+  the duplicate use and preserve/remap the event's captured result if no response
+  output exists.
+- Preserve internal whitespace in shell correlation signatures so quoted argv
+  values with one versus two spaces remain distinct.
+- Show full session IDs in resume ambiguity errors for colliding Codex tail IDs.
+- Defer superseded-render deletion until the replacement index has persisted, so
+  a failed save cannot leave the stored index pointing at a deleted file.
+
+## 0.16.4 — 2026-09-03
+
+### Make Codex tool correlation one-to-one and canonical
+
+- Consume each matching response span after suppressing one completed-event
+  mirror, so a legitimately repeated identical event invocation remains.
+- Canonicalize `mcp__server__tool`, separate `namespace` + `name`, and
+  `server.tool` event forms to one rendered identity.
+- Sort object keys recursively before signature serialization and preserve
+  direct argv boundaries in signatures, preventing equivalent objects from
+  duplicating and distinct argv arrays from collapsing together.
+- Make the active-vs-archived adapter test separator-independent on Windows.
+
+## 0.16.3 — 2026-09-03
+
+### Close Codex collision and correlation gaps
+
+- Keep the 8-character Codex tail id for display/lookup, but use the sanitized
+  full thread UUID in rendered filenames so equal tails cannot overwrite one
+  another. The Codex source fingerprint carries a storage-format marker so a
+  prior short-id render is re-written and removed through the existing guarded
+  path cleanup.
+- Correlate response-backed and completed-event tools by normalized tool family
+  plus input content, using record proximity only as a tie-breaker. A different
+  event-only command inside a response span is retained; only an actual mirror
+  is suppressed.
+- Preserve direct local-shell argv boundaries with JSON-style argument quoting,
+  while rendering `sh`/`zsh`/PowerShell/cmd command payloads directly. This keeps
+  multi-word commit messages and TOC previews intact.
+
+## 0.16.2 — 2026-09-03
+
+### Harden current Codex tool and injected-context parsing
+
+- Accept `local_shell_call.action.command` string arrays in manifest/TOC shell
+  extraction.
+- Normalize raw custom `apply_patch` input and include `*** Move to:` rename
+  destinations in `files_touched`.
+- Strip the full current `# AGENTS.md ... <INSTRUCTIONS>` wrapper, including
+  multi-paragraph instructions, while preserving following user text.
+- Merge response and completed-event tool lanes per nearby invocation so mixed
+  rollouts retain older event-only tools without duplicating current response
+  calls. `ResponseItem::AgentMessage` remains intentionally excluded because it
+  is author/recipient inter-agent delivery, not visible assistant output.
+- Fix the duplicate marketing-page paragraph tag found during review.
+
+## 0.16.1 — 2026-09-03
+
+### Fix Windows non-git project paths (#37)
+
+`projectSlugFromPath()` now splits both `/` and `\` separators and drops a
+standalone drive-letter segment before deriving the parent/basename slug. A
+Windows cwd such as `E:\downloads\sample-project\TICKET-1234\2026-08-06`
+therefore becomes `TICKET-1234-2026-08-06` instead of placing the raw `E:`
+path beneath `raw_sessions/` and failing `mkdirSync` with `ENOENT`. Remote-based
+project identities are unchanged. Regression coverage locks both the direct
+slug helper and the no-remote `resolveProjectIdSync()` path.
+
+## 0.16.0 — 2026-09-03
+
+### Add Codex Desktop and interactive Codex CLI JSONL sync
+
+- Add a third source adapter for active and archived `~/.codex` rollout JSONL,
+  shared by Codex Desktop and interactive Codex CLI. `codex exec` and explicit
+  subagent/guardian child threads are excluded by default.
+- Reconcile Codex display events with response items so injected context and
+  duplicate UI/protocol records do not become conversation turns; retain
+  plaintext reasoning and legacy/current/custom tool calls with structured
+  results.
+- Use the full Codex thread UUID as identity and a UUIDv7-safe tail shortId for
+  display. Resume lookup now accepts an exact stored shortId as well as a full
+  ID prefix.
+- Use remote-first project identity, latest append-only Codex titles, and
+  guarded cleanup when a title rename changes the rendered Markdown path.
+- Extend manifest/TOC extraction for Codex shell and `apply_patch` tools, and
+  verify existing cross-device aggregation accepts `tool: codex` unchanged.
+
 ## 0.15.2 — 2026-08-10
 
 ### Fix: CI aggregation compared `updatedAt` lexically, so a stale copy could win

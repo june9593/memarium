@@ -3,8 +3,9 @@
 Cross-device sync for your AI coding sessions.
 
 `memarium` is the npm CLI half of a two-package system. It collects
-Claude Code + VS Code Copilot Chat sessions on every machine you use,
-pushes them to a private git repo, and lets you `resume` a session
+Claude Code, VS Code Copilot Chat, Codex Desktop, and interactive Codex
+CLI sessions on every machine you use, pushes them to a private git repo,
+and lets you `resume` a session
 on a different laptop than where it started.
 
 For digest + recall (typed memory — episodes, decisions, "what did
@@ -41,33 +42,37 @@ After init, push your sessions:
 memarium sync
 ```
 
-## Cross-device resume (NEW in 0.5.0)
+## Supported session sources
 
-Once you've sync'd from machine A, machine B can resume a session that
-started on A:
+- Claude Code (`~/.claude/projects/`)
+- VS Code Copilot Chat (`workspaceStorage`)
+- Codex Desktop and interactive Codex CLI (`~/.codex/sessions/` and
+  `~/.codex/archived_sessions/`)
+
+`codex exec` batch runs and Codex's internal subagent/guardian child threads
+are intentionally excluded from the default sync corpus.
+
+## Cross-device resume
+
+Once you've synced from machine A, machine B can continue any indexed source
+session in a fresh Claude Code conversation:
 
 ```sh
-# On machine B (after `memarium sync` pulls A's session-repo):
-memarium list-sessions --since 7d           # Find sessions from this week
-memarium resume <sessionId>                  # Copy jsonl + emit `claude --resume` hint
+# On machine B (after `memarium sync` refreshes the aggregated spool):
+memarium list-sessions --since 7d
+memarium resume <sessionId-or-shortId>
 ```
 
-If A and B have different home dir layouts (e.g. `/Users/alice` vs
-`/Users/bob`), tell memarium how to translate paths once:
+`resume` reads the rendered session Markdown and supplies it as context to a
+new `claude` process. It does not copy source JSONL, mutate Claude internals,
+or natively resume a Codex/Copilot thread.
+
+If A and B have different home directory layouts (for example
+`/Users/alice` vs `/Users/bob`), configure the path translation once:
 
 ```sh
 memarium config --map-path /Users/alice=/Users/bob
 ```
-
-After that, `memarium resume` rewrites all absolute paths in the jsonl
-during copy, so `claude --resume` lands in the right local cwd.
-
-Each resume is a **fork** — B gets a fresh sessionId so you can
-continue on B without colliding with A if A also keeps chatting on
-the same source session. The fork's origin is recorded in
-`~/.memarium/resume-forks.json` and stamped onto the spool index entry
-on the next `memarium sync` (as `originSessionId`), so plugin-side
-digest tooling can later reason about same-source threads.
 
 ## Commands
 
@@ -76,7 +81,7 @@ digest tooling can later reason about same-source threads.
 | `memarium init` | Interactive wizard. One-time setup. |
 | `memarium sync` | Extract local sessions, push to your device branch. |
 | `memarium list-sessions [--project --since --device]` | List sessions in spool, sortable for resume. |
-| `memarium resume <sessionId>` | Copy jsonl into `~/.claude/projects/`, print `claude --resume` hint. |
+| `memarium resume <sessionId>` | Start fresh Claude Code with the rendered source session as context. |
 | `memarium config [--map-path FROM=TO]` | Read or modify `~/.memarium/config.json`. |
 | `memarium upgrade` | `npm install -g memarium@latest`. |
 | `memarium doctor` | Health check: CLI, config, spool state, plugin install status. |
@@ -89,7 +94,7 @@ digest tooling can later reason about same-source threads.
 
 - `~/.memarium/config.json` — your settings (`mode 0600`)
 - `~/.memarium/session-repo/` — git working tree of your private memory repo
-  - `raw_sessions/<tool>/<project>/<date>/*.{md,raw.json,jsonl}` — sync-rendered session copies plus the original jsonl (preserved for resume)
+  - `raw_sessions/<tool>/<project>/<date>/*.md` — one rendered Markdown file per source session
   - `.memarium/index.json` — spool index (co-owned with the plugin)
   - `memory/` and `.memarium/index.memory.json` (+ `index.entity.json` / `index.qa.json`) — written by the plugin if you have it installed
 
@@ -138,7 +143,7 @@ See [CHANGELOG](./CHANGELOG.md) for the full breaking-change list.
   - `commands/` — one file per CLI subcommand
   - `commands/resume/` — list-sessions, resume, path-rewrite, config-pathmap
   - `digest/{project-filter,session-signal}.ts` — sync-side filtering helpers (the rest of the dir was moved to the plugin)
-  - `sources/` — Claude Code + Copilot adapters (sync uses both)
+  - `sources/` — Claude Code, Copilot, and Codex adapters
 - `tests/` — vitest, parallel structure to src/
 - `assets/{workflows,scripts}` — GitHub Actions YAML + cross-device aggregate script
 - `bin/memarium.ts` — commander entry, built to `dist/bin/memarium.js`

@@ -37,6 +37,13 @@ describe("projectSlugFromPath", () => {
     expect(projectSlugFromPath("/Users/me")).toBe("home");
     expect(projectSlugFromPath("/")).toBe("root");
   });
+
+  it("splits Windows paths without leaking the drive letter into the slug", () => {
+    expect(projectSlugFromPath("E:\\downloads\\sample-project\\TICKET-1234\\2026-08-06"))
+      .toBe("TICKET-1234-2026-08-06");
+    expect(projectSlugFromPath("C:\\Users\\alice")).toBe("home");
+    expect(projectSlugFromPath("E:\\")).toBe("root");
+  });
 });
 
 describe("toDisplayName", () => {

@@ -8,8 +8,8 @@
 ## What this project is
 
 **memarium (npm)** = the **sync + resume + aggregate** half of a two-package
-system. Cross-device transport for Claude Code + VS Code Copilot Chat
-sessions, plus the read-side commands (`resume`, `list-sessions`, `show`).
+system. Cross-device transport for Claude Code + VS Code Copilot Chat +
+Codex Desktop/interactive CLI sessions, plus the read-side commands (`resume`, `list-sessions`, `show`).
 No LLM calls — pure I/O.
 
 The **digest + recall** half lives in the separate
@@ -47,6 +47,7 @@ src/
   sources/
     claude-code.ts           # ~/.claude/projects/<...>/<id>.jsonl extractor
     vscode-copilot.ts        # VS Code workspaceStorage extractor (chatSessions/+transcripts/ deduped)
+    codex.ts                  # ~/.codex active + archived rollout JSONL extractor
     base.ts                  # SourceAdapter interface
   writer.ts                  # 0.7.0 two-pass renderer: frontmatter + manifest + TOC + body
   aggregated-store.ts        # 0.8.0 — git-worktree-based read-only main overlay (P7)
@@ -73,7 +74,7 @@ marketing-site/                      # project landing page (live at Pages)
    then the body. **Never write `.raw.json` or `.jsonl` siblings** — both
    were dropped in 0.6.0; resume reads the `.md` directly.
 
-3. **Two extractors, one rule each:**
+3. **Three extractors, one rule each:**
    - Claude: filter `isMeta=true` (skill body injections — 0.6.3); use
      content blocks (text / thinking / tool_use / tool_result).
    - Copilot: walk `chatSessions/<id>.jsonl` as a **rolling-window state
@@ -81,6 +82,10 @@ marketing-site/                      # project landing page (live at Pages)
      elements to a growing `turns[]` (0.6.2); dedupe vs
      `transcripts/<id>.jsonl` per workspace, chatSessions wins (0.7.1);
      skip empty-shell sessions (`messages.length === 0`, 0.7.1).
+   - Codex: scan active + archived `rollout-*.jsonl`; reconcile duplicate
+     `event_msg` / `response_item` views, keep full UUID identity and a tail
+     shortId (UUIDv7 prefixes collide), include Desktop + interactive CLI,
+     and exclude `codex_exec` + explicit subagent/guardian child threads.
 
 4. **Per-clone read-only overlay** (0.8.0, `src/aggregated-store.ts`):
    sync refreshes a second git worktree at `~/.memarium/aggregated/`
@@ -129,12 +134,12 @@ Bump rules:
 - Vitest, 230+ tests (count climbs with each feature; `npx vitest run` for
   the actual current count). Add tests for every behavioral change.
 - Tests use `mkdtempSync` + `vi.stubEnv("HOME", ...)` to sandbox file
-  system + config; no test should touch real `~/.claude` or `~/.memarium`.
+  system + config; no test should touch real `~/.claude`, `~/.codex`, or `~/.memarium`.
 - For tests that involve git, build a fixture local repo with `git init`
   (not network).
 - Source-adapter tests live in `tests/sources/` with fixtures under
-  `tests/fixtures/{claude,copilot}/`. Keep them separated — both
-  adapters' `discover()` walks recursively and will cross-contaminate if
+  `tests/fixtures/{claude,copilot,codex}/`. Keep them separated — the
+  adapters' `discover()` methods walk recursively and will cross-contaminate if
   fixtures share a parent dir.
 
 ## Gotchas (read before doing the thing)

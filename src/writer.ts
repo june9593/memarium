@@ -31,23 +31,32 @@ export function writeSession(
   opts: WriteSessionOptions = {},
 ): WrittenPaths {
   const date = s.startedAt.slice(0, 10); // YYYY-MM-DD
-  const dirRel = join("raw_sessions", s.tool, s.project, date);
-  const absDir = join(repoRoot, dirRel);
+  const dirRel = ["raw_sessions", s.tool, s.project, date].join("/");
+  const absDir = join(repoRoot, "raw_sessions", s.tool, s.project, date);
   mkdirSync(absDir, { recursive: true });
 
-  const base = `${s.nameSlug}__${s.shortId}`;
-  const mdRel = join(dirRel, `${base}.md`);
+  const storageId = s.tool === "codex" ? safeStorageId(s.sessionId) : s.shortId;
+  const base = `${s.nameSlug}__${storageId}`;
+  const fileName = `${base}.md`;
+  const mdRel = `${dirRel}/${fileName}`;
 
   const includeReasoning = opts.includeReasoning ?? true;
   const fullToolResults =
     opts.fullToolResults ?? process.env.MEMARIUM_FULL_TOOL_RESULTS === "1";
 
   writeFileSync(
-    join(repoRoot, mdRel),
+    join(absDir, fileName),
     renderMarkdown(s, { includeReasoning, fullToolResults }),
   );
 
   return { md: mdRel };
+}
+
+function safeStorageId(sessionId: string): string {
+  return sessionId
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 interface RenderCtx {

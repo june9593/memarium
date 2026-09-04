@@ -12,6 +12,7 @@ import type { IndexFile, IndexEntry } from "../../types.js";
 export function findEntries(idx: IndexFile, idOrPrefix: string): IndexEntry[] {
   const needle = idOrPrefix.toLowerCase();
   return Object.values(idx.entries).filter((e) =>
+    e.shortId.toLowerCase() === needle ||
     e.sessionId.toLowerCase().startsWith(needle),
   );
 }

@@ -60,4 +60,27 @@ describe("findEntries", () => {
   it("is case-insensitive on hex", () => {
     expect(findEntries(idx, "44BE6DBA")).toEqual([a]);
   });
+
+  it("matches an exact source-specific shortId even when it is not a full-id prefix", () => {
+    const codex = mkEntry({
+      tool: "codex",
+      sessionId: "019f0000-1111-7000-8000-0000aaaabbbb",
+      shortId: "aaaabbbb",
+    });
+    expect(findEntries(mkIndex([codex]), "AAAABBBB")).toEqual([codex]);
+  });
+
+  it("keeps exact shortId collisions ambiguous", () => {
+    const first = mkEntry({
+      tool: "codex",
+      sessionId: "019f0000-1111-7000-8000-0000aaaabbbb",
+      shortId: "aaaabbbb",
+    });
+    const second = mkEntry({
+      tool: "codex",
+      sessionId: "019f0000-2222-7000-8000-0000aaaabbbb",
+      shortId: "aaaabbbb",
+    });
+    expect(findEntries(mkIndex([first, second]), "aaaabbbb")).toEqual([first, second]);
+  });
 });

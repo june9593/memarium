@@ -83,6 +83,31 @@ describe("resumeCmd (0.6 — context-as-prompt)", () => {
     expect(r.matchedSessionId).toBe("abc12345-cbf6-41f0-ab88-5cb425caba57");
   });
 
+  it("shows full session IDs when colliding Codex tail shortIds are ambiguous", async () => {
+    const indexPath = join(repoPath, ".memarium/index.json");
+    const index = JSON.parse(readFileSync(indexPath, "utf8"));
+    const template = Object.values(index.entries)[0] as Record<string, unknown>;
+    const ids = [
+      "019f0000-aaaa-7000-8000-1111deadbeef",
+      "019f0000-bbbb-7000-8000-2222deadbeef",
+    ];
+    index.entries = Object.fromEntries(ids.map((sessionId) => [
+      `codex:${sessionId}`,
+      { ...template, tool: "codex", sessionId, shortId: "deadbeef" },
+    ]));
+    writeFileSync(indexPath, JSON.stringify(index));
+
+    const { resumeCmd } = await import("../../../src/commands/resume/resume.js");
+    try {
+      await resumeCmd({ idOrPrefix: "deadbeef", print: true });
+      expect.fail("expected an ambiguity error");
+    } catch (error) {
+      const message = (error as Error).message;
+      expect(message).toContain(ids[0]!);
+      expect(message).toContain(ids[1]!);
+    }
+  });
+
   it("throws when no match", async () => {
     const { resumeCmd } = await import("../../../src/commands/resume/resume.js");
     await expect(resumeCmd({ idOrPrefix: "deadbeef", print: true })).rejects.toThrow(/No session matches/);

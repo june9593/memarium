@@ -64,6 +64,30 @@ describe("writeSession (0.6 — single .md, frontmatter, content blocks)", () =>
     expect(existsSync(join(repo, `${base}.jsonl`))).toBe(false);
   });
 
+  it("uses the full Codex session id for collision-proof storage paths", () => {
+    const first: NormalizedSession = {
+      ...session,
+      tool: "codex",
+      sessionId: "019f0000-1111-7000-8000-0000aaaabbbb",
+      shortId: "aaaabbbb",
+      nameSlug: "same-title",
+    };
+    const second: NormalizedSession = {
+      ...first,
+      sessionId: "019f0000-2222-7000-8000-0000aaaabbbb",
+    };
+
+    const firstPath = writeSession(repo, first).md;
+    const secondPath = writeSession(repo, second).md;
+    expect(firstPath).not.toBe(secondPath);
+    expect(firstPath).not.toContain("\\");
+    expect(secondPath).not.toContain("\\");
+    expect(firstPath).toContain(first.sessionId);
+    expect(secondPath).toContain(second.sessionId);
+    expect(existsSync(join(repo, firstPath))).toBe(true);
+    expect(existsSync(join(repo, secondPath))).toBe(true);
+  });
+
   it("includes YAML frontmatter with required fields", () => {
     const { md } = writeSession(repo, session);
     const body = readFileSync(join(repo, md), "utf8");

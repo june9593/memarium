@@ -15,7 +15,9 @@ export function toDisplayName(s: string): string {
 
 export function projectSlugFromPath(cwdOrPath: string): string {
   if (!cwdOrPath || cwdOrPath === "/") return "root";
-  const parts = cwdOrPath.split("/").filter(Boolean);
+  const parts = cwdOrPath
+    .split(/[/\\]/)
+    .filter((part) => part && !/^[A-Za-z]:$/.test(part));
   if (parts.length === 0) return "root";
   if (parts.length === 1) return parts[0];
   // Prefer "parent-basename" so `/Users/me/code/demo` → "code-demo"

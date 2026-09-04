@@ -1,0 +1,19 @@
+{"timestamp":"2026-06-05T08:00:00.000Z","type":"session_meta","payload":{"id":"019f0000-2222-7000-8000-0000ccccdddd","timestamp":"2026-06-05T08:00:00.000Z","cwd":"/Users/test/code/demo","originator":"codex-tui","source":"cli","thread_source":"user","cli_version":"0.137.0"}}
+{"timestamp":"2026-06-05T08:00:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>\n<cwd>/Users/test/code/demo</cwd>\n</environment_context>"}]}}
+{"timestamp":"2026-06-05T08:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}}
+{"timestamp":"2026-06-05T08:00:02.001Z","type":"event_msg","payload":{"type":"user_message","message":"hi","images":[]}}
+{"timestamp":"2026-06-05T08:00:03.000Z","type":"event_msg","payload":{"type":"agent_message","message":"What would you like to change?","phase":"final_answer"}}
+{"timestamp":"2026-06-05T08:00:03.001Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"What would you like to change?"}],"phase":"final_answer"}}
+{"timestamp":"2026-06-05T08:00:04.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"# AGENTS.md instructions\nUse the project conventions.\n\nPlease update the retry configuration."}]}}
+{"timestamp":"2026-06-05T08:00:04.500Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"# AGENTS.md instructions for /Users/test/code/demo\n\n<INSTRUCTIONS>\nFirst injected paragraph.\n\nSecond injected paragraph must also stay out.\n</INSTRUCTIONS>\n\nPlease preserve the visible request."}]}}
+{"timestamp":"2026-06-05T08:00:05.000Z","type":"response_item","payload":{"type":"reasoning","id":"reason-cli","summary":[{"type":"summary_text","text":"Check the configuration path"}],"encrypted_content":"encrypted"}}
+{"timestamp":"2026-06-05T08:00:06.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"git commit -m \\\"update retry config\\\"\"}","call_id":"call-cli-1"}}
+{"timestamp":"2026-06-05T08:00:07.000Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-cli-1","output":"[main abc1234] update retry config"}}
+{"timestamp":"2026-06-05T08:00:08.000Z","type":"response_item","payload":{"type":"function_call","name":"apply_patch","arguments":"{\"patch\":\"*** Begin Patch\\n*** Update File: src/config.ts\\n@@\\n-old\\n+new\\n*** End Patch\"}","call_id":"call-cli-2"}}
+{"timestamp":"2026-06-05T08:00:09.000Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-cli-2","output":{"status":"ok","files":["src/config.ts"]}}}
+{"timestamp":"2026-06-05T08:00:10.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"run tests"}]}}
+{"timestamp":"2026-06-05T08:00:10.001Z","type":"event_msg","payload":{"type":"user_message","message":"run tests"}}
+{"timestamp":"2026-06-05T08:00:11.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"The tests pass."}],"phase":"final_answer"}}
+{"timestamp":"2026-06-05T08:00:11.001Z","type":"event_msg","payload":{"type":"agent_message","message":"The tests pass.","phase":"final_answer"}}
+{"timestamp":"2026-06-05T08:00:12.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"run tests"}]}}
+{"timestamp":"2026-06-05T08:00:12.001Z","type":"event_msg","payload":{"type":"user_message","message":"run tests"}}

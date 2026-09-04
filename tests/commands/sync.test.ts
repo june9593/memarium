@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, mkdirSync, existsSync, cpSync } from "node:fs";
+import { mkdtempSync, mkdirSync, existsSync, cpSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runSync, ensureDeviceBranchOnConfig, readConfigWithMigration } from "../../src/commands/sync.js";
 import { loadIndex } from "../../src/index-store.js";
 import * as configModule from "../../src/config.js";
+import * as gitOpsModule from "../../src/git-ops.js";
 import type { Config } from "../../src/config.js";
 
 function baseCfg(overrides: Partial<Config> = {}): Config {
@@ -58,6 +59,7 @@ describe("readConfigWithMigration", () => {
 });
 
 const fixturesDir = join(fileURLToPath(new URL(".", import.meta.url)), "..", "fixtures");
+const emptyCodexRoot = join(fixturesDir, "does-not-exist-codex");
 
 describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
   let repo: string;
@@ -74,7 +76,7 @@ describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
 
   it("extracts new sessions, writes files, updates index", async () => {
     const result = await runSync({
-      repoPath: repo, claudeRoot, vscodeRoot,
+      repoPath: repo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot,
     });
     expect(result.newCount).toBe(1);
     expect(result.skippedCount).toBe(0);
@@ -88,14 +90,14 @@ describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
   });
 
   it("skips unchanged sessions on second run", async () => {
-    await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
-    const result2 = await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot });
+    const result2 = await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot });
     expect(result2.newCount).toBe(0);
     expect(result2.skippedCount).toBe(1);
   });
 
   it("never creates digest artifacts (book/ or memory/) — that's /memarium's job, not sync's", async () => {
-    await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot });
     expect(existsSync(join(repo, "book"))).toBe(false);
     expect(existsSync(join(repo, "memory"))).toBe(false);
   });
@@ -119,13 +121,152 @@ describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
     const { writeFileSync } = await import("node:fs");
     writeFileSync(join(emptyWs, "chatSessions", "empty-shell-cccc.jsonl"), shell);
 
-    const result = await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
+    const result = await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot });
     // 1 real claude session written, 1 empty shell skipped
     expect(result.newCount).toBe(1);
     expect(result.skippedCount).toBeGreaterThanOrEqual(1);
 
     // No 1970-01-01 directory created for the empty shell
     expect(existsSync(join(repo, "raw_sessions/copilot"))).toBe(false);
+  });
+});
+
+describe("runSync — Codex JSONL", () => {
+  let repo: string;
+  let claudeRoot: string;
+  let vscodeRoot: string;
+  let codexRoot: string;
+
+  beforeEach(() => {
+    repo = mkdtempSync(join(tmpdir(), "memarium-codex-repo-"));
+    claudeRoot = mkdtempSync(join(tmpdir(), "memarium-codex-claude-"));
+    vscodeRoot = mkdtempSync(join(tmpdir(), "memarium-codex-vscode-"));
+    codexRoot = mkdtempSync(join(tmpdir(), "memarium-codex-root-"));
+    cpSync(join(fixturesDir, "codex"), codexRoot, { recursive: true });
+  });
+
+  it("writes Desktop, interactive CLI, fork, and archived sessions under codex index keys", async () => {
+    const first = await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
+    expect(first.newCount).toBe(4);
+    const idx = loadIndex(repo);
+    expect(Object.keys(idx.entries)).toHaveLength(4);
+    expect(Object.keys(idx.entries).every((key) => key.startsWith("codex:"))).toBe(true);
+    expect(Object.values(idx.entries).every((entry) =>
+      entry.relativePath.startsWith("raw_sessions/codex/") &&
+      existsSync(join(repo, entry.relativePath)),
+    )).toBe(true);
+
+    const second = await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
+    expect(second.newCount).toBe(0);
+    expect(second.skippedCount).toBe(4);
+  });
+
+  it("stores same-title Codex sessions with colliding tail shortIds at distinct paths", async () => {
+    const ids = [
+      "019f0000-aaaa-7000-8000-1111deadbeef",
+      "019f0000-bbbb-7000-8000-2222deadbeef",
+    ];
+    const sessionDir = join(codexRoot, "sessions/2026/09/02");
+    mkdirSync(sessionDir, { recursive: true });
+    for (const id of ids) {
+      writeFileSync(join(sessionDir, `rollout-${id}.jsonl`), [
+        JSON.stringify({ timestamp: "2026-09-02T00:00:00Z", type: "session_meta", payload: {
+          id, timestamp: "2026-09-02T00:00:00Z", cwd: "/Users/test/code/collision",
+          originator: "codex-tui", source: "cli",
+        } }),
+        JSON.stringify({ timestamp: "2026-09-02T00:00:01Z", type: "event_msg", payload: {
+          type: "user_message", message: "same visible title",
+        } }),
+      ].join("\n") + "\n");
+    }
+
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
+    const idx = loadIndex(repo);
+    const paths = ids.map((id) => idx.entries[`codex:${id}`]!.relativePath);
+    expect(new Set(paths).size).toBe(2);
+    expect(paths[0]).toContain(ids[0]!);
+    expect(paths[1]).toContain(ids[1]!);
+    expect(paths.every((path) => existsSync(join(repo, path)))).toBe(true);
+  });
+
+  it("does not extract or replace the index when branch synchronization fails", async () => {
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
+    const id = "019f0000-1111-7000-8000-0000aaaabbbb";
+    const indexPath = join(repo, ".memarium/index.json");
+    const oldEntry = loadIndex(repo).entries[`codex:${id}`]!;
+    const titleIndex = join(codexRoot, "session_index.jsonl");
+    writeFileSync(titleIndex, readFileSync(titleIndex, "utf8") + JSON.stringify({
+      id, thread_name: "Rename before failed preflight", updated_at: "2026-09-02T12:00:00Z",
+    }) + "\n");
+
+    const { simpleGit } = await import("simple-git");
+    const git = simpleGit(repo);
+    await git.raw(["init", "-b", "device-test"]);
+    await git.addConfig("user.email", "test@example.com");
+    await git.addConfig("user.name", "Test");
+    await git.add(".");
+    await git.commit("seed");
+    await git.addRemote("origin", join(tmpdir(), "missing-memarium-remote.git"));
+    const fastForward = vi.spyOn(gitOpsModule, "fastForwardBranch")
+      .mockRejectedValue(new Error("forced preflight failure"));
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      const result = await runSync({
+        repoPath: repo,
+        claudeRoot,
+        vscodeRoot,
+        codexRoot,
+        push: true,
+        repoUrl: join(tmpdir(), "missing-memarium-remote.git"),
+        deviceBranch: "device-test",
+      });
+      expect(result).toMatchObject({ newCount: 0, committed: false, pushed: false });
+      const persisted = loadIndex(repo).entries[`codex:${id}`]!;
+      expect(persisted.relativePath).toBe(oldEntry.relativePath);
+      expect(existsSync(join(repo, oldEntry.relativePath))).toBe(true);
+    } finally {
+      fastForward.mockRestore();
+      log.mockRestore();
+    }
+  });
+
+  it.skipIf(process.platform === "win32")("does not delete the indexed render when saving the replacement index fails", async () => {
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
+    const id = "019f0000-1111-7000-8000-0000aaaabbbb";
+    const indexPath = join(repo, ".memarium/index.json");
+    const oldPath = loadIndex(repo).entries[`codex:${id}`]!.relativePath;
+    const titleIndex = join(codexRoot, "session_index.jsonl");
+    writeFileSync(titleIndex, readFileSync(titleIndex, "utf8") + JSON.stringify({
+      id, thread_name: "Rename before failed save", updated_at: "2026-09-02T12:00:00Z",
+    }) + "\n");
+    chmodSync(indexPath, 0o444);
+    try {
+      await expect(runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot })).rejects.toThrow();
+      expect(existsSync(join(repo, oldPath))).toBe(true);
+    } finally {
+      chmodSync(indexPath, 0o644);
+    }
+  });
+
+  it("reimports a title-only rename and removes the superseded rendered file", async () => {
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
+    const id = "019f0000-1111-7000-8000-0000aaaabbbb";
+    const before = loadIndex(repo).entries[`codex:${id}`]!;
+    const oldPath = before.relativePath;
+    const titleIndex = join(codexRoot, "session_index.jsonl");
+    writeFileSync(titleIndex, readFileSync(titleIndex, "utf8") + JSON.stringify({
+      id,
+      thread_name: "Renamed retry policy",
+      updated_at: "2026-09-01T11:00:00Z",
+    }) + "\n");
+
+    const result = await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot });
+    const after = loadIndex(repo).entries[`codex:${id}`]!;
+    expect(result.newCount).toBe(1);
+    expect(result.skippedCount).toBe(3);
+    expect(after.relativePath).not.toBe(oldPath);
+    expect(existsSync(join(repo, after.relativePath))).toBe(true);
+    expect(existsSync(join(repo, oldPath))).toBe(false);
   });
 });
 
@@ -188,7 +329,7 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
 
   it("first push of a fresh device branch picks up .github/workflows/memarium-aggregate.yml from main, commits and pushes it", async () => {
     await runSync({
-      repoPath: workRepo, claudeRoot, vscodeRoot,
+      repoPath: workRepo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot,
       push: true,
       repoUrl: bareRemote,
       deviceBranch: "mini-fresh",
@@ -214,7 +355,7 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     await simpleGit(workRepo).commit("pre-seed workflow on device branch");
 
     await runSync({
-      repoPath: workRepo, claudeRoot, vscodeRoot,
+      repoPath: workRepo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot,
       push: true,
       repoUrl: bareRemote,
       deviceBranch: "mini-fresh",
@@ -249,7 +390,7 @@ describe("runSync — workflow file inheritance from main (P1, 0.8.1)", () => {
     await wg.checkoutLocalBranch("mini-fresh2");
 
     await runSync({
-      repoPath: freshClone, claudeRoot, vscodeRoot,
+      repoPath: freshClone, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot,
       push: true,
       repoUrl: freshBare,
       deviceBranch: "mini-fresh2",
@@ -325,7 +466,7 @@ describe("runSync — memory/ staging (0.8.6)", () => {
     );
 
     await runSync({
-      repoPath: workRepo, claudeRoot, vscodeRoot,
+      repoPath: workRepo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot,
       push: true,
       repoUrl: bareRemote,
       deviceBranch: "memsync-device",
@@ -342,7 +483,7 @@ describe("runSync — memory/ staging (0.8.6)", () => {
 
     // No memory/ written — sync should still succeed without error.
     const result = await runSync({
-      repoPath: workRepo, claudeRoot, vscodeRoot,
+      repoPath: workRepo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot,
       push: true,
       repoUrl: bareRemote,
       deviceBranch: "memsync-device",
@@ -373,7 +514,7 @@ describe("runSync — memory/ staging (0.8.6)", () => {
     );
 
     await runSync({
-      repoPath: workRepo, claudeRoot, vscodeRoot,
+      repoPath: workRepo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot,
       push: true,
       repoUrl: bareRemote,
       deviceBranch: "memsync-device",
@@ -401,7 +542,7 @@ describe("runSync — memory/ staging (0.8.6)", () => {
     );
 
     await runSync({
-      repoPath: workRepo, claudeRoot, vscodeRoot,
+      repoPath: workRepo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot,
       push: true,
       repoUrl: bareRemote,
       deviceBranch: "memsync-device",
@@ -429,7 +570,7 @@ describe("runSync — orphan index prune (0.8.4)", () => {
     const proj = join(claudeRoot, "-Users-me-code-demo");
     mkdirSync(proj, { recursive: true });
     cpSync(join(fixturesDir, "claude", "claude-session.jsonl"), join(proj, "abc12345.jsonl"));
-    await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot });
 
     // Sanity: 1 indexed entry, 1 rendered md
     let idx = loadIndex(repo);
@@ -445,7 +586,7 @@ describe("runSync — orphan index prune (0.8.4)", () => {
     rmSync(join(repo, onlyEntry.relativePath));
 
     // Second sync: the prune pass should clean the orphan entry.
-    await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot });
 
     idx = loadIndex(repo);
     expect(Object.keys(idx.entries).length).toBe(0);
@@ -458,13 +599,13 @@ describe("runSync — orphan index prune (0.8.4)", () => {
     const proj = join(claudeRoot, "-Users-me-code-demo");
     mkdirSync(proj, { recursive: true });
     cpSync(join(fixturesDir, "claude", "claude-session.jsonl"), join(proj, "abc12345.jsonl"));
-    await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot });
 
     // Delete the source jsonl but KEEP the rendered md
     const { unlinkSync } = await import("node:fs");
     unlinkSync(join(proj, "abc12345.jsonl"));
 
-    await runSync({ repoPath: repo, claudeRoot, vscodeRoot });
+    await runSync({ repoPath: repo, claudeRoot, vscodeRoot, codexRoot: emptyCodexRoot });
 
     const idx = loadIndex(repo);
     expect(Object.keys(idx.entries).length).toBe(1);

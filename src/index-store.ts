@@ -8,6 +8,11 @@ export function loadIndex(repoRoot: string): IndexFile {
   if (!existsSync(p)) return { version: 1, entries: {} };
   const parsed = JSON.parse(readFileSync(p, "utf8")) as IndexFile;
   if (parsed.version !== 1) throw new Error(`unsupported index version: ${parsed.version}`);
+  for (const entry of Object.values(parsed.entries)) {
+    if (entry && typeof entry.relativePath === "string") {
+      entry.relativePath = entry.relativePath.replace(/\\/g, "/");
+    }
+  }
   return parsed;
 }
 

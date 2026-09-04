@@ -21,8 +21,9 @@ const GIT_COMMIT_RE = /\bgit\s+commit\b[^\n]*?-m\s+(?:"((?:[^"\\]|\\.)*)"|'((?:[
 const GIT_COMMIT_HEREDOC_RE = /\bgit\s+commit\b[^\n]*?-m\s+"\$\(cat\s+<<\s*'?(\w+)'?[\r\n]+([\s\S]*?)[\r\n]+\1\s*\)"/;
 const GIT_TAG_RE = /\bgit\s+tag\b(?:[^\n]*?-(?:a|s)\s+)?\s*(v[\w.\-+]+)(?:[^\n]*?-m\s+(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'))?/;
 
-/** Tools whose input.file_path contributes to files_touched. */
+/** Native file tools; Codex apply_patch paths are handled separately. */
 const FILE_TOOLS = new Set(["Read", "Edit", "Write", "MultiEdit", "NotebookEdit"]);
+const SHELL_TOOLS = new Set(["Bash", "exec", "exec_command", "local_shell"]);
 
 /**
  * Extract a mechanical-facts SessionManifest from already-extracted
@@ -62,16 +63,18 @@ export function extractManifest(
       if (b.type !== "tool_use") continue;
       tools_used[b.name] = (tools_used[b.name] ?? 0) + 1;
 
-      if (FILE_TOOLS.has(b.name)) {
-        const fp = readFilePath(b);
-        if (fp && !filesSeen.has(fp) && files_touched.length < FILES_CAP) {
+      const filePaths = FILE_TOOLS.has(b.name)
+        ? [readFilePath(b)].filter((path): path is string => path !== null)
+        : (b.name === "apply_patch" ? readPatchPaths(b) : []);
+      for (const fp of filePaths) {
+        if (!filesSeen.has(fp) && files_touched.length < FILES_CAP) {
           filesSeen.add(fp);
           files_touched.push(fp);
         }
       }
 
-      if (b.name === "Bash" && commits.length < COMMITS_CAP) {
-        const cmd = readBashCommand(b);
+      if (SHELL_TOOLS.has(b.name) && commits.length < COMMITS_CAP) {
+        const cmd = readShellCommand(b);
         if (cmd) {
           const c = parseCommit(cmd);
           if (c) commits.push({ ...c, line });
@@ -100,10 +103,38 @@ function readFilePath(b: Extract<ContentBlock, { type: "tool_use" }>): string | 
   return typeof input.file_path === "string" ? input.file_path : null;
 }
 
-function readBashCommand(b: Extract<ContentBlock, { type: "tool_use" }>): string | null {
-  const input = b.input as { command?: unknown } | null;
+function readShellCommand(b: Extract<ContentBlock, { type: "tool_use" }>): string | null {
+  const input = b.input as { command?: unknown; cmd?: unknown } | null;
   if (!input || typeof input !== "object") return null;
-  return typeof input.command === "string" ? input.command : null;
+  return commandText(input.command) ?? commandText(input.cmd);
+}
+
+function commandText(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return null;
+  const parts = value.filter((part): part is string => typeof part === "string");
+  if (parts.length === 0) return null;
+  const executable = parts[0]!.split(/[/\\]/).pop()!.toLowerCase();
+  if (["sh", "bash", "zsh", "fish", "pwsh", "powershell", "powershell.exe", "cmd", "cmd.exe"].includes(executable)) {
+    const commandFlag = parts.findIndex((part, index) =>
+      index > 0 && (/^-[a-z]*c[a-z]*$/i.test(part) || /^--?command$/i.test(part) || /^\/c$/i.test(part)),
+    );
+    if (commandFlag >= 0 && parts[commandFlag + 1]) return parts[commandFlag + 1]!;
+  }
+  return parts.map(formatArg).join(" ");
+}
+
+function formatArg(value: string): string {
+  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) return value;
+  return JSON.stringify(value);
+}
+
+function readPatchPaths(b: Extract<ContentBlock, { type: "tool_use" }>): string[] {
+  const input = b.input as { patch?: unknown } | null;
+  if (!input || typeof input !== "object" || typeof input.patch !== "string") return [];
+  return [...input.patch.matchAll(/^\*\*\* (?:(?:Add|Update|Delete) File:|Move to:) (.+)$/gm)]
+    .map((match) => match[1]!.trim())
+    .filter(Boolean);
 }
 
 function parseCommit(cmd: string): { sha: string; msg: string } | null {

@@ -1,0 +1,3 @@
+{"timestamp":"2026-06-05T11:00:00.000Z","type":"session_meta","payload":{"id":"019f0000-5555-7000-8000-000033334444","timestamp":"2026-06-05T11:00:00.000Z","cwd":"/Users/test/code/demo","originator":"codex_cli_rs","source":"cli","forked_from_id":"019f0000-2222-7000-8000-0000ccccdddd","thread_source":"user"}}
+{"timestamp":"2026-06-05T11:00:01.000Z","type":"event_msg","payload":{"type":"user_message","message":"try a different implementation"}}
+{"timestamp":"2026-06-05T11:00:02.000Z","type":"event_msg","payload":{"type":"agent_message","message":"I will use the alternate path.","phase":"final_answer"}}
