@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { simpleGit } from "simple-git";
 import { runSync, type SyncOptions } from "../../src/commands/sync.js";
-import { loadIndex } from "../../src/index-store.js";
+import { loadIndex, saveIndex } from "../../src/index-store.js";
 import * as gitOps from "../../src/git-ops.js";
 
 const id = "12345678-abcd-4000-8000-123456789abc";
@@ -57,6 +57,7 @@ describe("sync staging after filename migration", () => {
       folder: pathToFileURL(join(home, "projects", project)).href,
     }));
     const content = { version: 3, sessionId: id, customTitle: title, requests: [{
+      requestId: workspace,
       message: { text: "Inspect the configuration loader" },
       response: [{ kind: "markdownContent", content: { value: "The configuration path was verified." } }],
       timestamp: Date.parse("2026-09-01T12:00:00Z"),
@@ -126,7 +127,72 @@ describe("sync staging after filename migration", () => {
     source(order[0]!, "one", "Same title");
     source(order[1]!, "two", "Other title");
     source(order[2]!, "one", "Same title");
-    await runSync({ ...options, push: false });
+    for (const ws of order) {
+      utimesSync(join(storage, ws, "chatSessions", `${id}.json`), new Date("2026-09-01"), new Date("2026-09-01"));
+    }
+    expect((await runSync({ ...options, push: false })).newCount).toBe(3);
     expect(existsSync(join(repo, loadIndex(repo).entries[key]!.relativePath))).toBe(true);
+  }, 30_000);
+
+  it("sends only pending raw paths to staging even with a large clean indexed archive", async () => {
+    source("workspace-a", "one", "Original title");
+    await runSync(options);
+    const idx = loadIndex(repo);
+    const entry = idx.entries[key]!;
+    for (let i = 0; i < 500; i++) {
+      const sessionId = `archived-${i}`;
+      const path = `raw_sessions/copilot/archive-${i}.md`;
+      writeFileSync(join(repo, path), `Archive ${i}`);
+      idx.entries[`copilot:${sessionId}`] = { ...entry, sessionId, relativePath: path, sourcePath: join(home, `absent-${i}`) };
+    }
+    writeFileSync(join(repo, ".memarium/index.json"), JSON.stringify(idx, null, 2) + "\n");
+    const git = simpleGit(repo);
+    await git.add(["raw_sessions", ".memarium/index.json"]);
+    await git.commit("seed a clean archive");
+    await git.push("origin", "device-test");
+
+    const commit = vi.spyOn(gitOps, "commitAndPush");
+    const noop = await runSync(options);
+    expect(noop.committed).toBe(false);
+    expect(commit.mock.calls[0]![2].filter((p) => p.startsWith("raw_sessions/"))).toEqual([]);
+    commit.mockClear();
+
+    writeFileSync(join(repo, entry.relativePath), "Updated pending render");
+    writeFileSync(join(repo, "raw_sessions/unindexed.md"), "not an indexed render");
+    expect((await runSync(options)).pushed).toBe(true);
+    expect(commit.mock.calls[0]![2].filter((p) => p.startsWith("raw_sessions/"))).toEqual([entry.relativePath]);
+    expect(await simpleGit(remote).show([`device-test:${entry.relativePath}`])).toBe("Updated pending render");
+    expect(await git.raw(["ls-files", "--", "raw_sessions/unindexed.md"])).toBe("");
+  }, 30_000);
+
+  it("does not stage a missing render still referenced by the final index when its source cannot load", async () => {
+    source("workspace-a", "one", "Keep remote evidence");
+    await runSync(options);
+    const entry = loadIndex(repo).entries[key]!;
+    const oldBody = readFileSync(join(repo, entry.relativePath), "utf8");
+    rmSync(join(repo, entry.relativePath));
+    writeFileSync(join(storage, "workspace-a", "chatSessions", `${id}.json`), '{"requests":');
+    const commit = vi.spyOn(gitOps, "commitAndPush");
+    await runSync(options);
+    expect(commit.mock.calls[0]![2]).not.toContain(entry.relativePath);
+    const remoteGit = simpleGit(remote);
+    const published = JSON.parse(await remoteGit.show(["device-test:.memarium/index.json"]));
+    expect(await remoteGit.show([`device-test:${published.entries[key].relativePath}`])).toBe(oldBody);
+  }, 30_000);
+
+  it.each([false, true])("keeps an actionable committed path after a case-only title change (legacy alias: %s)", async (legacyAlias, ctx) => {
+    source("workspace-a", "one", "Foo");
+    await runSync(options);
+    if (legacyAlias) {
+      const idx = loadIndex(repo);
+      const alias = idx.entries[key]!.relativePath.replace("Foo__", "foo__");
+      if (!existsSync(join(repo, alias))) { ctx.skip(); return; } // case-sensitive filesystem
+      idx.entries[key]!.relativePath = alias;
+      saveIndex(repo, idx);
+    }
+    source("workspace-a", "one", "foo");
+    await runSync(options);
+    expect(loadIndex(repo).entries[key]!.displayName).toBe("foo");
+    await expectPublishedRender();
   }, 30_000);
 });

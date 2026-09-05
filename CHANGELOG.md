@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.17.2 — 2026-09-06
+
+### Bound staging and preserve case-only renames
+
+- Query pending raw-session changes before intersecting with final index
+  references; no-op syncs no longer pass the entire archive to `git add`.
+  Stage through a private, NUL-delimited literal pathspec file to avoid argv
+  limits even during large migrations (Git 2.25+). Always clean up that file.
+- Do not stage a missing render as deleted while the final index still refers
+  to it, including when the local source is temporarily malformed.
+- Protect canonical final-index paths during old-render cleanup. On
+  case-insensitive filesystems, retain the actual filename spelling in the
+  index so Git can retrieve the updated render after a case-only title change.
+- Pin duplicate-source mtimes and vary their fingerprints to guarantee the
+  A → B → A regression processes all three copies. Cover argv overflow,
+  literal paths, temp-file cleanup, pending-only staging, and remote path reads.
+
 ## 0.17.1 — 2026-09-05
 
 ### Fix staging and retry after session filename migration

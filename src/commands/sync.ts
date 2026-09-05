@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import chalk from "chalk";
 import { ClaudeCodeAdapter } from "../sources/claude-code.js";
@@ -163,9 +163,7 @@ Opening repo at ${opts.repoPath}...`));
   }
 
   saveIndex(opts.repoPath, idx);
-  for (const previousPath of pendingRemovals) {
-    removeSupersededRenderedSession(opts.repoPath, idx, previousPath);
-  }
+  removeSupersededRenderedSessions(opts.repoPath, idx, pendingRemovals);
 
   let committed = false, pushed = false;
   if (opts.push && opts.repoUrl && opts.deviceBranch) {
@@ -264,36 +262,54 @@ async function sessionPathsToStage(
   repoPath: string,
   idx: IndexFile,
 ): Promise<string[]> {
+  // Query pending work first: a no-op must not stat/stage the entire archive.
+  // --modified includes working-tree deletions; -z preserves Unicode/newlines.
+  const pending = await git.raw([
+    "ls-files", "--modified", "--others", "--exclude-standard", "-z", "--", "raw_sessions",
+  ]);
+  if (!pending) return [];
   const rawRoot = resolve(repoPath, "raw_sessions");
+  const referenced = new Set(Object.values(idx.entries).map((entry) =>
+    resolve(repoPath, entry.relativePath),
+  ));
   const paths = new Set<string>();
-  for (const entry of Object.values(idx.entries)) {
-    const abs = resolve(repoPath, entry.relativePath);
-    if (abs.startsWith(rawRoot + sep) && existsSync(abs)) paths.add(entry.relativePath);
-  }
-  // Git knows which missing files are tracked; a deleted untracked render is
-  // not a valid pathspec and must never be sent to git add.
-  const deleted = await git.raw(["ls-files", "--deleted", "-z", "--", "raw_sessions"]);
-  for (const path of deleted.split("\0")) {
-    if (path) paths.add(path);
+  for (const path of pending.split("\0")) {
+    if (!path) continue;
+    const abs = resolve(repoPath, path);
+    if (!abs.startsWith(rawRoot + sep)) continue;
+    // Existing files must be indexed. Missing tracked files may only be
+    // deleted remotely when the final index no longer references them.
+    if (existsSync(abs)) {
+      if (referenced.has(abs)) paths.add(path);
+    } else if (!referenced.has(abs)) {
+      paths.add(path);
+    }
   }
   return [...paths];
 }
 
-function removeSupersededRenderedSession(
+function removeSupersededRenderedSessions(
   repoPath: string,
   idx: IndexFile,
-  previousPath: string,
+  previousPaths: Set<string>,
 ): void {
+  if (previousPaths.size === 0) return;
   const rawRoot = resolve(repoPath, "raw_sessions");
-  const previousAbs = resolve(repoPath, previousPath);
-  if (!previousAbs.startsWith(rawRoot + sep)) return;
-  // Include the current session: repeated workspace discoveries can return to
-  // a path queued for deletion earlier in the same run (A → B → A).
-  const referenced = Object.values(idx.entries).some((entry) =>
-    resolve(repoPath, entry.relativePath) === previousAbs,
-  );
-  if (referenced || !existsSync(previousAbs)) return;
-  try { rmSync(previousAbs); } catch { /* best-effort orphan cleanup */ }
+  // Protect the final A in A → B → A, including case-insensitive aliases.
+  // Cache canonical references once, rather than rescanning for each removal.
+  const referenced = new Set<string>();
+  for (const entry of Object.values(idx.entries)) {
+    const abs = resolve(repoPath, entry.relativePath);
+    referenced.add(abs);
+    try { referenced.add(realpathSync.native(abs)); } catch { /* missing render */ }
+  }
+  for (const previousPath of previousPaths) {
+    const previousAbs = resolve(repoPath, previousPath);
+    if (!previousAbs.startsWith(rawRoot + sep) || referenced.has(previousAbs)) continue;
+    try {
+      if (!referenced.has(realpathSync.native(previousAbs))) rmSync(previousAbs);
+    } catch { /* best-effort orphan cleanup */ }
+  }
 }
 
 /**
