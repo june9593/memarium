@@ -93,8 +93,7 @@ Opening repo at ${opts.repoPath}...`));
 
   let newCount = 0, skippedCount = 0;
   const pathsWritten: string[] = [];
-  const pathsRemoved: string[] = [];
-  const pendingRemovals: { indexKey: string; previousPath: string }[] = [];
+  const pendingRemovals = new Set<string>();
 
   for (const adapter of adapters) {
     for await (const d of adapter.discover()) {
@@ -122,7 +121,7 @@ Opening repo at ${opts.repoPath}...`));
       const rel = writeSession(opts.repoPath, s, { includeReasoning: opts.includeReasoning });
       pathsWritten.push(rel.md);
       if (previousPath && previousPath !== rel.md) {
-        pendingRemovals.push({ indexKey, previousPath });
+        pendingRemovals.add(previousPath);
       }
 
       const entry: IndexEntry = {
@@ -164,16 +163,14 @@ Opening repo at ${opts.repoPath}...`));
   }
 
   saveIndex(opts.repoPath, idx);
-  for (const { indexKey, previousPath } of pendingRemovals) {
-    if (removeSupersededRenderedSession(opts.repoPath, idx, indexKey, previousPath)) {
-      pathsRemoved.push(previousPath);
-    }
+  for (const previousPath of pendingRemovals) {
+    removeSupersededRenderedSession(opts.repoPath, idx, previousPath);
   }
 
   let committed = false, pushed = false;
   if (opts.push && opts.repoUrl && opts.deviceBranch) {
     const git = pushGit!;
-    const all = [...pathsWritten, ...pathsRemoved, INDEX_REL];
+    const all = [...await sessionPathsToStage(git, opts.repoPath, idx), INDEX_REL];
     if (dataDirMig.migrated && dataDirMig.viaGit) {
       for (const p of migratedDataDirPaths(opts.repoPath)) all.push(p);
     }
@@ -258,25 +255,45 @@ Opening repo at ${opts.repoPath}...`));
   return { newCount, skippedCount, pathsWritten, committed, pushed };
 }
 
+/** Reconstruct the staging set from durable state, not this run's write log.
+ * A duplicate source can replace an untracked intermediate render, and a retry
+ * can skip a render written before an earlier git failure. Neither is reflected
+ * reliably in pathsWritten. Do not sweep unindexed files into the commit. */
+async function sessionPathsToStage(
+  git: Awaited<ReturnType<typeof ensureRepo>>,
+  repoPath: string,
+  idx: IndexFile,
+): Promise<string[]> {
+  const rawRoot = resolve(repoPath, "raw_sessions");
+  const paths = new Set<string>();
+  for (const entry of Object.values(idx.entries)) {
+    const abs = resolve(repoPath, entry.relativePath);
+    if (abs.startsWith(rawRoot + sep) && existsSync(abs)) paths.add(entry.relativePath);
+  }
+  // Git knows which missing files are tracked; a deleted untracked render is
+  // not a valid pathspec and must never be sent to git add.
+  const deleted = await git.raw(["ls-files", "--deleted", "-z", "--", "raw_sessions"]);
+  for (const path of deleted.split("\0")) {
+    if (path) paths.add(path);
+  }
+  return [...paths];
+}
+
 function removeSupersededRenderedSession(
   repoPath: string,
   idx: IndexFile,
-  currentKey: string,
   previousPath: string,
-): boolean {
+): void {
   const rawRoot = resolve(repoPath, "raw_sessions");
   const previousAbs = resolve(repoPath, previousPath);
-  if (!previousAbs.startsWith(rawRoot + sep)) return false;
-  const shared = Object.entries(idx.entries).some(([key, entry]) =>
-    key !== currentKey && entry.relativePath === previousPath,
+  if (!previousAbs.startsWith(rawRoot + sep)) return;
+  // Include the current session: repeated workspace discoveries can return to
+  // a path queued for deletion earlier in the same run (A → B → A).
+  const referenced = Object.values(idx.entries).some((entry) =>
+    resolve(repoPath, entry.relativePath) === previousAbs,
   );
-  if (shared || !existsSync(previousAbs)) return false;
-  try {
-    rmSync(previousAbs);
-    return true;
-  } catch {
-    return false;
-  }
+  if (referenced || !existsSync(previousAbs)) return;
+  try { rmSync(previousAbs); } catch { /* best-effort orphan cleanup */ }
 }
 
 /**

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.17.1 — 2026-09-05
+
+### Fix staging and retry after session filename migration
+
+- Rebuild raw-session staging paths from the final index's existing renders
+  plus Git-tracked deletions, rather than transient per-run write/removal lists.
+  A duplicate workspace can create then remove an untracked intermediate file;
+  passing that missing filename to `git add` previously aborted the sync.
+- Include already-indexed renders on retry so a prior interrupted staging
+  attempt cannot publish an index without its replacement Markdown. Unindexed
+  raw files and unrelated repository files are not swept into staging.
+- Keep any render referenced by the final index, including the current session:
+  an A → B → A discovery order must not delete the final A render.
+- Regression tests use local bare Git repositories to reproduce the exact
+  missing-pathspec failure, untracked old-title cleanup, interrupted retries,
+  Unicode paths, and repeated workspace discovery.
+
+After upgrading, re-run sync normally. Do not delete the spool index or reset
+existing local changes to recover from the staging failure.
+
 ## 0.17.0 — 2026-09-05
 
 ### Prefer Copilot's persisted session title
