@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, mkdirSync, existsSync, cpSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, existsSync, cpSync, readFileSync, writeFileSync, chmodSync, statSync, rmSync, appendFileSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -129,6 +130,122 @@ describe("runSync — extract + raw push only (v0.2: no LLM)", () => {
     // No 1970-01-01 directory created for the empty shell
     expect(existsSync(join(repo, "raw_sessions/copilot"))).toBe(false);
   });
+});
+
+describe("runSync — Copilot custom-title migration", () => {
+  let sandbox: string;
+  beforeEach(() => {
+    sandbox = mkdtempSync(join(tmpdir(), "memarium-copilot-title-"));
+    vi.stubEnv("HOME", sandbox);
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    rmSync(sandbox, { recursive: true, force: true });
+  });
+
+  it("migrates and pushes a legacy filename once, then follows title-only renames and clearing", async () => {
+    const repo = join(sandbox, "repo");
+    const claudeRoot = join(sandbox, "empty-claude");
+    const vscodeRoot = join(sandbox, "vscode");
+    const codexRoot = join(fixturesDir, "does-not-exist-codex");
+    const ws = join(vscodeRoot, "hashTitle");
+    mkdirSync(join(ws, "chatSessions"), { recursive: true });
+    cpSync(join(fixturesDir, "copilot", "workspace.json"), join(ws, "workspace.json"));
+    const sourcePath = join(ws, "chatSessions", "sess-bbbb2222.jsonl");
+    cpSync(join(fixturesDir, "copilot", "vscode-copilot-chatsessions.jsonl"), sourcePath);
+
+    const oldRelativePath = "raw_sessions/copilot/code-demo/2025-06-15/First-user-turn__sess-bbb.md";
+    mkdirSync(join(repo, "raw_sessions/copilot/code-demo/2025-06-15"), { recursive: true });
+    writeFileSync(join(repo, oldRelativePath), "legacy first-prompt render\n");
+    mkdirSync(join(repo, ".memarium"), { recursive: true });
+    const st = statSync(sourcePath);
+    const legacySha = createHash("sha256").update(readFileSync(sourcePath)).digest("hex");
+    writeFileSync(join(repo, ".memarium/index.json"), JSON.stringify({
+      version: 1,
+      entries: {
+        "copilot:sess-bbbb2222": {
+          sessionId: "sess-bbbb2222",
+          shortId: "sess-bbb",
+          tool: "copilot",
+          project: "code-demo",
+          projectRaw: "/Users/me/code/demo",
+          startedAt: "2025-06-15T15:06:40.000Z",
+          endedAt: "2025-06-15T15:08:40.000Z",
+          nameSlug: "First-user-turn",
+          displayName: "First user turn",
+          relativePath: oldRelativePath,
+          sourcePath,
+          sourceMtimeMs: st.mtimeMs,
+          sourceSha256: legacySha,
+        },
+      },
+    }));
+
+    const { simpleGit } = await import("simple-git");
+    const remote = join(sandbox, "origin.git");
+    mkdirSync(remote);
+    await simpleGit(remote).raw(["init", "--bare", "-b", "main"]);
+    const git = simpleGit(repo);
+    await git.raw(["init", "-b", "device-test"]);
+    await git.addConfig("user.name", "Test");
+    await git.addConfig("user.email", "test@example.com");
+    await git.add(".");
+    await git.commit("seed legacy first-prompt filename");
+    await git.addRemote("origin", remote);
+    await git.push("origin", "device-test");
+    const options = {
+      repoPath: repo, claudeRoot, vscodeRoot, codexRoot,
+      push: true, repoUrl: remote, deviceBranch: "device-test",
+    };
+    const result = await runSync(options);
+    const idx = loadIndex(repo);
+    const entry = idx.entries["copilot:sess-bbbb2222"]!;
+    expect(result.newCount).toBe(1);
+    expect(Object.keys(idx.entries)).toEqual(["copilot:sess-bbbb2222"]);
+    expect(entry.displayName).toBe("Final Copilot session title");
+    expect(entry.relativePath).not.toBe(oldRelativePath);
+    expect(existsSync(join(repo, oldRelativePath))).toBe(false);
+    expect(existsSync(join(repo, entry.relativePath))).toBe(true);
+    expect(result.pushed).toBe(true);
+    const migratedMd = readFileSync(join(repo, entry.relativePath), "utf8");
+    expect(migratedMd).toContain("displayName: Final Copilot session title");
+    expect(migratedMd).toContain("First user turn");
+    expect(statSync(sourcePath).mtimeMs).toBe(st.mtimeMs);
+    expect(createHash("sha256").update(readFileSync(sourcePath)).digest("hex")).toBe(legacySha);
+
+    async function expectRemotePath(expectedPath: string) {
+      const remoteGit = simpleGit(remote);
+      const remoteIndex = JSON.parse(await remoteGit.show(["device-test:.memarium/index.json"]));
+      expect(Object.keys(remoteIndex.entries)).toEqual(["copilot:sess-bbbb2222"]);
+      expect(remoteIndex.entries["copilot:sess-bbbb2222"].relativePath).toBe(expectedPath);
+      const paths = (await remoteGit.raw(["ls-tree", "-r", "--name-only", "device-test", "--", "raw_sessions"]))
+        .trim().split("\n");
+      expect(paths).toEqual([expectedPath]);
+    }
+
+    await expectRemotePath(entry.relativePath);
+    const second = await runSync(options);
+    expect(second).toMatchObject({ newCount: 0, skippedCount: 1, committed: false });
+
+    // Keep mtime fixed: appending only the title must still invalidate the SHA.
+    appendFileSync(sourcePath, JSON.stringify({ kind: 1, k: ["customTitle"], v: "Renamed provider title" }) + "\n");
+    utimesSync(sourcePath, st.atime, st.mtime);
+    expect((await runSync(options)).newCount).toBe(1);
+    const renamed = loadIndex(repo).entries["copilot:sess-bbbb2222"]!;
+    expect(renamed.displayName).toBe("Renamed provider title");
+    expect(renamed.sessionId).toBe(entry.sessionId);
+    expect(renamed.shortId).toBe(entry.shortId);
+    expect(existsSync(join(repo, entry.relativePath))).toBe(false);
+    await expectRemotePath(renamed.relativePath);
+
+    appendFileSync(sourcePath, JSON.stringify({ kind: 1, k: ["customTitle"], v: "" }) + "\n");
+    expect((await runSync(options)).newCount).toBe(1);
+    const cleared = loadIndex(repo).entries["copilot:sess-bbbb2222"]!;
+    expect(cleared.displayName).toBe("First user turn");
+    expect(existsSync(join(repo, renamed.relativePath))).toBe(false);
+    await expectRemotePath(cleared.relativePath);
+    expect((await runSync(options)).newCount).toBe(0);
+  }, 30_000);
 });
 
 describe("runSync — Codex JSONL", () => {
