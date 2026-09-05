@@ -180,19 +180,68 @@ describe("sync staging after filename migration", () => {
     expect(await remoteGit.show([`device-test:${published.entries[key].relativePath}`])).toBe(oldBody);
   }, 30_000);
 
-  it.each([false, true])("keeps an actionable committed path after a case-only title change (legacy alias: %s)", async (legacyAlias, ctx) => {
-    source("workspace-a", "one", "Foo");
-    await runSync(options);
-    if (legacyAlias) {
+  for (const legacyAlias of [false, true]) {
+    it(`keeps an actionable committed path after a case-only title change (legacy alias: ${legacyAlias})`, async (ctx) => {
+      source("workspace-a", "one", "Foo");
+      await runSync(options);
+      if (legacyAlias) {
+        const idx = loadIndex(repo);
+        const alias = idx.entries[key]!.relativePath.replace("Foo__", "foo__");
+        if (!existsSync(join(repo, alias))) {
+          vi.unstubAllEnvs();
+          rmSync(home, { recursive: true, force: true });
+          ctx.skip(); return; // case-sensitive filesystem
+        }
+        idx.entries[key]!.relativePath = alias;
+        saveIndex(repo, idx);
+      }
+      source("workspace-a", "one", "foo");
+      await runSync(options);
+      expect(loadIndex(repo).entries[key]!.displayName).toBe("foo");
+      await expectPublishedRender();
+    }, 30_000);
+  }
+
+  for (const ignoreCase of [false, true]) {
+    it(`honors core.ignorecase for a missing tracked path with an index case alias (ignorecase: ${ignoreCase})`, async (ctx) => {
+      source("workspace-a", "one", "Foo");
+      await runSync(options);
+      const git = simpleGit(repo);
+      await git.addConfig("core.ignorecase", String(ignoreCase));
       const idx = loadIndex(repo);
-      const alias = idx.entries[key]!.relativePath.replace("Foo__", "foo__");
-      if (!existsSync(join(repo, alias))) { ctx.skip(); return; } // case-sensitive filesystem
+      const tracked = idx.entries[key]!.relativePath;
+      const oldBody = readFileSync(join(repo, tracked), "utf8");
+      const alias = tracked.replace("Foo__", "foo__");
+      if (!ignoreCase && existsSync(join(repo, alias))) {
+        vi.unstubAllEnvs();
+        rmSync(home, { recursive: true, force: true });
+        ctx.skip(); return; // case-insensitive filesystem
+      }
       idx.entries[key]!.relativePath = alias;
       saveIndex(repo, idx);
-    }
-    source("workspace-a", "one", "foo");
-    await runSync(options);
-    expect(loadIndex(repo).entries[key]!.displayName).toBe("foo");
-    await expectPublishedRender();
-  }, 30_000);
+      rmSync(join(repo, tracked));
+      // With ignorecase=false these are intentionally distinct paths: delete
+      // the uppercase old render and publish the lowercase replacement.
+      if (!ignoreCase) writeFileSync(join(repo, alias), "Distinct replacement");
+      writeFileSync(join(storage, "workspace-a", "chatSessions", `${id}.json`), '{"requests":');
+
+      const commit = vi.spyOn(gitOps, "commitAndPush");
+      await runSync(options);
+      const staged = commit.mock.calls[0]![2];
+      const remoteGit = simpleGit(remote);
+      const published = JSON.parse(await remoteGit.show(["device-test:.memarium/index.json"]));
+      if (ignoreCase) {
+        expect(staged).not.toContain(tracked);
+        expect(loadIndex(repo).entries[key]!.relativePath).toBe(tracked);
+        expect(published.entries[key].relativePath).toBe(tracked);
+        expect(await remoteGit.show([`device-test:${tracked}`])).toBe(oldBody);
+      } else {
+        expect(staged).toContain(alias);
+        expect(staged).toContain(tracked);
+        expect(published.entries[key].relativePath).toBe(alias);
+        expect(await remoteGit.show([`device-test:${alias}`])).toBe("Distinct replacement");
+        expect((await remoteGit.raw(["ls-tree", "-r", "--name-only", "-z", "device-test", "--", "raw_sessions"])).split("\0").filter(Boolean)).toEqual([alias]);
+      }
+    }, 30_000);
+  }
 });

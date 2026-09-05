@@ -168,7 +168,7 @@ Opening repo at ${opts.repoPath}...`));
   let committed = false, pushed = false;
   if (opts.push && opts.repoUrl && opts.deviceBranch) {
     const git = pushGit!;
-    const all = [...await sessionPathsToStage(git, opts.repoPath, idx), INDEX_REL];
+    const all = [...await prepareSessionStaging(git, opts.repoPath, idx), INDEX_REL];
     if (dataDirMig.migrated && dataDirMig.viaGit) {
       for (const p of migratedDataDirPaths(opts.repoPath)) all.push(p);
     }
@@ -256,8 +256,9 @@ Opening repo at ${opts.repoPath}...`));
 /** Reconstruct the staging set from durable state, not this run's write log.
  * A duplicate source can replace an untracked intermediate render, and a retry
  * can skip a render written before an earlier git failure. Neither is reflected
- * reliably in pathsWritten. Do not sweep unindexed files into the commit. */
-async function sessionPathsToStage(
+ * reliably in pathsWritten. Repair legacy index case aliases to Git's pending
+ * path spelling before committing; do not sweep unindexed files into the commit. */
+async function prepareSessionStaging(
   git: Awaited<ReturnType<typeof ensureRepo>>,
   repoPath: string,
   idx: IndexFile,
@@ -269,19 +270,41 @@ async function sessionPathsToStage(
   ]);
   if (!pending) return [];
   const rawRoot = resolve(repoPath, "raw_sessions");
-  const referenced = new Set(Object.values(idx.entries).map((entry) =>
-    resolve(repoPath, entry.relativePath),
-  ));
+  const ignoreCase = (await git.raw(["config", "--bool", "--default=false", "--get", "core.ignorecase"])).trim() === "true";
+  const pathKey = (path: string) => {
+    const abs = resolve(repoPath, path);
+    return ignoreCase ? abs.toLowerCase() : abs;
+  };
+  const pendingPaths = new Set(pending.split("\0").filter(Boolean));
+  const canonical = new Map<string, string | undefined>();
+  for (const path of pendingPaths) {
+    const key = pathKey(path);
+    // Never guess between multiple spellings on a misconfigured checkout.
+    canonical.set(key, canonical.has(key) ? undefined : path);
+  }
+  const referenced = new Set<string>();
+  let repaired = false;
+  for (const entry of Object.values(idx.entries)) {
+    const key = pathKey(entry.relativePath);
+    referenced.add(key);
+    const actual = canonical.get(key);
+    if (ignoreCase && actual && actual !== entry.relativePath && !pendingPaths.has(entry.relativePath)) {
+      entry.relativePath = actual;
+      repaired = true;
+    }
+  }
+  // Filtering deletions alone is insufficient: the published index must use
+  // Git's spelling even when the missing render's source could not be parsed.
+  if (repaired) saveIndex(repoPath, idx);
   const paths = new Set<string>();
-  for (const path of pending.split("\0")) {
-    if (!path) continue;
+  for (const path of pendingPaths) {
     const abs = resolve(repoPath, path);
     if (!abs.startsWith(rawRoot + sep)) continue;
     // Existing files must be indexed. Missing tracked files may only be
     // deleted remotely when the final index no longer references them.
     if (existsSync(abs)) {
-      if (referenced.has(abs)) paths.add(path);
-    } else if (!referenced.has(abs)) {
+      if (referenced.has(pathKey(path))) paths.add(path);
+    } else if (!referenced.has(pathKey(path))) {
       paths.add(path);
     }
   }

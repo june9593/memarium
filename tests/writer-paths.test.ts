@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { writeSession } from "../src/writer.js";
 import type { NormalizedSession } from "../src/types.js";
 
@@ -25,5 +25,32 @@ describe("writer logical paths", () => {
     const written = writeSession(repo, session);
     expect(written.md).toBe("raw_sessions/copilot/demo/2026-09-01/Foo__12345678.md");
     expect(existsSync(join(repo, written.md))).toBe(true);
+    const renamed = writeSession(repo, { ...session, project: "DEMO", nameSlug: "foo", displayName: "foo" });
+    const physical = relative(realpathSync.native(target), realpathSync.native(join(repo, renamed.md))).split(sep).join("/");
+    expect(renamed.md).toBe(`raw_sessions/${physical}`);
   });
+
+  for (const component of ["raw_sessions", "project"]) {
+    it(`preserves a ${component} symlink whose target differs only in case`, (ctx) => {
+      const repo = join(root, "repo");
+      const parent = component === "raw_sessions" ? repo : join(repo, "raw_sessions", "copilot");
+      const name = component === "raw_sessions" ? "raw_sessions" : "demo";
+      mkdirSync(parent, { recursive: true });
+      const target = join(parent, name.toUpperCase());
+      mkdirSync(target);
+      // This pair cannot coexist on a case-insensitive filesystem.
+      if (existsSync(join(parent, name))) {
+        rmSync(root, { recursive: true, force: true });
+        ctx.skip(); return;
+      }
+      symlinkSync(target, join(parent, name), process.platform === "win32" ? "junction" : "dir");
+      const session: NormalizedSession = {
+        tool: "copilot", sessionId: "12345678-abcd-4000-8000-123456789abc", shortId: "12345678",
+        project: "demo", projectRaw: "/tmp/demo", nameSlug: "Foo", displayName: "Foo",
+        startedAt: "2026-09-01T12:00:00Z", endedAt: "2026-09-01T12:00:00Z", sourcePath: join(root, "source.json"),
+        messages: [{ role: "user", text: "Inspect configuration" }],
+      };
+      expect(writeSession(repo, session).md).toBe("raw_sessions/copilot/demo/2026-09-01/Foo__12345678.md");
+    });
+  }
 });

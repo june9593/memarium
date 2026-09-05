@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.17.3 — 2026-09-06
+
+### Respect Git case aliases and logical symlink components
+
+- Honor `core.ignorecase` when checking final index references during staging.
+  Repair legacy case aliases to Git's pending path spelling before committing,
+  including when the render is missing and its source is temporarily malformed.
+  Case-sensitive repositories continue treating differently cased paths as distinct.
+- Recover writer paths component by component: preserve symlink names explicitly
+  and retain the actual spelling of ordinary entries beneath them. A symlink
+  such as `raw_sessions → RAW_SESSIONS` must not rewrite the logical index path.
+- Add real-filesystem regressions for both Git case policies, case-only symlink
+  targets at different depths, and renamed files/directories beneath symlinks.
+  Validate on both case-insensitive and case-sensitive temporary filesystems;
+  fix conditional test skips to use Vitest's actual test context.
+
 ## 0.17.2 — 2026-09-06
 
 ### Bound staging and preserve case-only renames
