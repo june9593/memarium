@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.17.0 — 2026-09-05
+
+### Prefer Copilot's persisted session title
+
+- Read `customTitle` from legacy chat JSON and the initial state plus subsequent
+  top-level title patches in chat-session JSONL. Prefer the latest provider
+  title, then the first real user message, then the session's display short ID.
+  Clearing the title restores the fallback; transcript-only sessions retain
+  their existing first-user-message naming.
+- Version chat-session fingerprints so an upgrade reimports unchanged local
+  JSON/JSONL once. Existing ID-based upserts and post-save path cleanup replace
+  old first-prompt filenames without changing session IDs, source data, or the
+  index schema. No separate bulk-rename script is needed.
+- Verify initial titles, short/non-English titles, clearing, malformed title
+  rows, stable fingerprints, and a full migration/rename/clear/push sequence
+  against a local bare git remote. Codex's existing `thread_name` support is
+  unchanged; update both packages when using the CLI and plugin together.
+
 ## 0.16.9 — 2026-09-04
 
 ### Synchronize the Codex/agent contributor guide

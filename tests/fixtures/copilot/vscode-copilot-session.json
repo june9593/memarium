@@ -1,5 +1,6 @@
 {
   "version": 3,
+  "customTitle": "Improve authentication retries",
   "requesterUsername": "user",
   "responderUsername": "GitHub Copilot",
   "requests": [

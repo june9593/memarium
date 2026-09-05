@@ -52,6 +52,20 @@ memarium sync
 `codex exec` batch runs and Codex's internal subagent/guardian child threads
 are intentionally excluded from the default sync corpus.
 
+Rendered titles and filenames prefer the provider's own session name when
+available (`Copilot customTitle`, `Codex thread_name`), then fall back to the
+first real user message. Copilot titles include both stored initial titles and
+later renames; clearing a title restores the fallback.
+
+After upgrading, the next sync reimports local Copilot `chatSessions` once,
+including unchanged JSON/JSONL files. It updates the same session-ID index entry
+and removes a superseded rendered filename only after saving the new index.
+No manual rename script or index reset is needed; source sessions are untouched.
+If you use both packages, update the CLI and plugin so they agree on titles.
+Sessions whose source is no longer on this device keep their existing names;
+resync them on the device holding the source. `memarium prune` can preview any
+older unindexed orphan files separately.
+
 ## Cross-device resume
 
 Once you've synced from machine A, machine B can continue any indexed source

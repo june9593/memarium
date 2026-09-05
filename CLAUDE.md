@@ -79,9 +79,11 @@ marketing-site/                      # project landing page (live at Pages)
      content blocks (text / thinking / tool_use / tool_result).
    - Copilot: walk `chatSessions/<id>.jsonl` as a **rolling-window state
      log** (NOT a transcript) — append `kind=2 k=["requests"]` snapshot
-     elements to a growing `turns[]` (0.6.2); dedupe vs
-     `transcripts/<id>.jsonl` per workspace, chatSessions wins (0.7.1);
-     skip empty-shell sessions (`messages.length === 0`, 0.7.1).
+     elements to a growing `turns[]` (0.6.2); retain the latest top-level
+     `customTitle` (initial state + later patch) before first-user fallback;
+     dedupe vs `transcripts/<id>.jsonl` per workspace, chatSessions wins
+     (0.7.1); skip empty shells. The chat fingerprint version forces the
+     one-time first-prompt→provider-title filename migration.
    - Codex: scan active + archived `rollout-*.jsonl`; reconcile duplicate
      `event_msg` / `response_item` views, keep full UUID identity and a tail
      shortId (UUIDv7 prefixes collide), include Desktop + interactive CLI,
