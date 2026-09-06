@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync, utimesSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { simpleGit } from "simple-git";
 import { runSync, type SyncOptions } from "../../src/commands/sync.js";
+import { VSCodeCopilotAdapter } from "../../src/sources/vscode-copilot.js";
 import { loadIndex, saveIndex } from "../../src/index-store.js";
 import * as gitOps from "../../src/git-ops.js";
 
@@ -120,17 +121,23 @@ describe("sync staging after filename migration", () => {
   }, 30_000);
 
   it("never deletes a path that the final index still references after an A-B-A discovery order", async () => {
-    for (const name of ["workspace-a", "workspace-b", "workspace-c"]) {
-      mkdirSync(join(storage, name));
-    }
-    const order = readdirSync(storage);
-    source(order[0]!, "one", "Same title");
-    source(order[1]!, "two", "Other title");
-    source(order[2]!, "one", "Same title");
-    for (const ws of order) {
+    const workspaces = ["workspace-a", "workspace-b", "workspace-c"];
+    source("workspace-a", "one", "Same title");
+    source("workspace-b", "two", "Other title");
+    source("workspace-c", "one", "Same title");
+    for (const ws of workspaces) {
       utimesSync(join(storage, ws, "chatSessions", `${id}.json`), new Date("2026-09-01"), new Date("2026-09-01"));
     }
+    const discovered = [];
+    for await (const item of new VSCodeCopilotAdapter(storage).discover()) discovered.push(item);
+    discovered.sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
+    expect(discovered.map((item) => item.sourcePath)).toEqual(workspaces.map((ws) => join(storage, ws, "chatSessions", `${id}.json`)));
+    // Control this regression's discovery order, not production enumeration.
+    const ordered = vi.spyOn(VSCodeCopilotAdapter.prototype, "discover").mockImplementation(async function* () {
+      yield* discovered;
+    });
     expect((await runSync({ ...options, push: false })).newCount).toBe(3);
+    expect(ordered).toHaveBeenCalledOnce();
     expect(existsSync(join(repo, loadIndex(repo).entries[key]!.relativePath))).toBe(true);
   }, 30_000);
 

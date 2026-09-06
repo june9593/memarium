@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.17.4 — 2026-09-06
+
+### Recover symlink entry casing without following the target
+
+- Resolve a case-aliased symlink name from its own directory entry using
+  non-dereferenced device/inode identity. Preserve that entry's actual spelling,
+  not the requested casing or the target's name; distinguish separate links
+  pointing at the same target.
+- Make the A → B → A regression independent of directory enumeration: assign
+  projects to explicit workspace names and replay real adapter discoveries in
+  an asserted order. Production discovery ordering is unchanged.
+- Cover root/project symlink-name aliases and both filesystem case policies.
+  The ordered plugin regression still fails against the original cleanup.
+
 ## 0.17.3 — 2026-09-06
 
 ### Respect Git case aliases and logical symlink components
