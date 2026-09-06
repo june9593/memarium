@@ -21,6 +21,8 @@ work on one machine. Install both if you want sync + digest.
 
 ## Install
 
+Requires Node.js 20+ and, for Git sync, Git 2.25+ (NUL-delimited staging pathspecs).
+
 ```sh
 npm install -g memarium
 memarium init
@@ -55,7 +57,9 @@ are intentionally excluded from the default sync corpus.
 Rendered titles and filenames prefer the provider's own session name when
 available (`Copilot customTitle`, `Codex thread_name`), then fall back to the
 first real user message. Copilot titles include both stored initial titles and
-later renames; clearing a title restores the fallback.
+later renames; clearing a title restores the fallback. On case-insensitive
+filesystems, a case-only rename updates the displayed title but keeps the file's
+on-disk spelling, so the index path also works in the case-sensitive Git tree.
 
 After upgrading, the next sync reimports local Copilot `chatSessions` once,
 including unchanged JSON/JSONL files. It updates the same session-ID index entry

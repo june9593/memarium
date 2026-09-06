@@ -1,5 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { lstatSync, mkdirSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import type { NormalizedSession, ContentBlock, SessionManifest, TocEntry } from "./types.js";
 import { extractManifest } from "./digest/manifest.js";
 import { buildTocEntries, renderTocMarkdown } from "./digest/toc.js";
@@ -49,7 +49,35 @@ export function writeSession(
     renderMarkdown(s, { includeReasoning, fullToolResults }),
   );
 
-  return { md: mdRel };
+  // Recover directory entry spelling one component at a time. Resolving the
+  // whole path would replace symlinks with their targets, even case-only ones.
+  const storedParts: string[] = [];
+  let parent = repoRoot;
+  for (const part of mdRel.split("/")) {
+    const abs = join(parent, part);
+    storedParts.push(storedEntryName(parent, part));
+    parent = abs;
+  }
+  return { md: storedParts.join("/") };
+}
+
+function storedEntryName(parent: string, requested: string): string {
+  const abs = join(parent, requested);
+  const identity = lstatSync(abs, { bigint: true });
+  if (!identity.isSymbolicLink()) return basename(realpathSync.native(abs));
+  // The link's own directory entry matters, not the target's name or identity.
+  const names = readdirSync(parent);
+  if (names.includes(requested)) return requested;
+  const aliases = names.filter((name) => {
+    try {
+      const candidate = lstatSync(join(parent, name), { bigint: true });
+      return candidate.dev === identity.dev && candidate.ino === identity.ino;
+    } catch { return false; } // unrelated entry disappeared during enumeration
+  });
+  const sameCaseFold = aliases.filter((name) => name.toLowerCase() === requested.toLowerCase());
+  if (sameCaseFold.length === 1) return sameCaseFold[0]!;
+  if (aliases.length === 1) return aliases[0]!;
+  throw new Error(`Cannot determine symlink entry spelling: ${abs}`);
 }
 
 function safeStorageId(sessionId: string): string {

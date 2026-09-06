@@ -1,5 +1,72 @@
 # Changelog
 
+## 0.17.4 — 2026-09-06
+
+### Recover symlink entry casing without following the target
+
+- Resolve a case-aliased symlink name from its own directory entry using
+  non-dereferenced device/inode identity. Preserve that entry's actual spelling,
+  not the requested casing or the target's name; distinguish separate links
+  pointing at the same target.
+- Make the A → B → A regression independent of directory enumeration: assign
+  projects to explicit workspace names and replay real adapter discoveries in
+  an asserted order. Production discovery ordering is unchanged.
+- Cover root/project symlink-name aliases and both filesystem case policies.
+  The ordered plugin regression still fails against the original cleanup.
+
+## 0.17.3 — 2026-09-06
+
+### Respect Git case aliases and logical symlink components
+
+- Honor `core.ignorecase` when checking final index references during staging.
+  Repair legacy case aliases to Git's pending path spelling before committing,
+  including when the render is missing and its source is temporarily malformed.
+  Case-sensitive repositories continue treating differently cased paths as distinct.
+- Recover writer paths component by component: preserve symlink names explicitly
+  and retain the actual spelling of ordinary entries beneath them. A symlink
+  such as `raw_sessions → RAW_SESSIONS` must not rewrite the logical index path.
+- Add real-filesystem regressions for both Git case policies, case-only symlink
+  targets at different depths, and renamed files/directories beneath symlinks.
+  Validate on both case-insensitive and case-sensitive temporary filesystems;
+  fix conditional test skips to use Vitest's actual test context.
+
+## 0.17.2 — 2026-09-06
+
+### Bound staging and preserve case-only renames
+
+- Query pending raw-session changes before intersecting with final index
+  references; no-op syncs no longer pass the entire archive to `git add`.
+  Stage through a private, NUL-delimited literal pathspec file to avoid argv
+  limits even during large migrations (Git 2.25+). Always clean up that file.
+- Do not stage a missing render as deleted while the final index still refers
+  to it, including when the local source is temporarily malformed.
+- Protect canonical final-index paths during old-render cleanup. On
+  case-insensitive filesystems, retain the actual filename spelling in the
+  index so Git can retrieve the updated render after a case-only title change.
+- Pin duplicate-source mtimes and vary their fingerprints to guarantee the
+  A → B → A regression processes all three copies. Cover argv overflow,
+  literal paths, temp-file cleanup, pending-only staging, and remote path reads.
+
+## 0.17.1 — 2026-09-05
+
+### Fix staging and retry after session filename migration
+
+- Rebuild raw-session staging paths from the final index's existing renders
+  plus Git-tracked deletions, rather than transient per-run write/removal lists.
+  A duplicate workspace can create then remove an untracked intermediate file;
+  passing that missing filename to `git add` previously aborted the sync.
+- Include already-indexed renders on retry so a prior interrupted staging
+  attempt cannot publish an index without its replacement Markdown. Unindexed
+  raw files and unrelated repository files are not swept into staging.
+- Keep any render referenced by the final index, including the current session:
+  an A → B → A discovery order must not delete the final A render.
+- Regression tests use local bare Git repositories to reproduce the exact
+  missing-pathspec failure, untracked old-title cleanup, interrupted retries,
+  Unicode paths, and repeated workspace discovery.
+
+After upgrading, re-run sync normally. Do not delete the spool index or reset
+existing local changes to recover from the staging failure.
+
 ## 0.17.0 — 2026-09-05
 
 ### Prefer Copilot's persisted session title

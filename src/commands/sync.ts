@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import chalk from "chalk";
 import { ClaudeCodeAdapter } from "../sources/claude-code.js";
@@ -93,8 +93,7 @@ Opening repo at ${opts.repoPath}...`));
 
   let newCount = 0, skippedCount = 0;
   const pathsWritten: string[] = [];
-  const pathsRemoved: string[] = [];
-  const pendingRemovals: { indexKey: string; previousPath: string }[] = [];
+  const pendingRemovals = new Set<string>();
 
   for (const adapter of adapters) {
     for await (const d of adapter.discover()) {
@@ -122,7 +121,7 @@ Opening repo at ${opts.repoPath}...`));
       const rel = writeSession(opts.repoPath, s, { includeReasoning: opts.includeReasoning });
       pathsWritten.push(rel.md);
       if (previousPath && previousPath !== rel.md) {
-        pendingRemovals.push({ indexKey, previousPath });
+        pendingRemovals.add(previousPath);
       }
 
       const entry: IndexEntry = {
@@ -164,16 +163,12 @@ Opening repo at ${opts.repoPath}...`));
   }
 
   saveIndex(opts.repoPath, idx);
-  for (const { indexKey, previousPath } of pendingRemovals) {
-    if (removeSupersededRenderedSession(opts.repoPath, idx, indexKey, previousPath)) {
-      pathsRemoved.push(previousPath);
-    }
-  }
+  removeSupersededRenderedSessions(opts.repoPath, idx, pendingRemovals);
 
   let committed = false, pushed = false;
   if (opts.push && opts.repoUrl && opts.deviceBranch) {
     const git = pushGit!;
-    const all = [...pathsWritten, ...pathsRemoved, INDEX_REL];
+    const all = [...await prepareSessionStaging(git, opts.repoPath, idx), INDEX_REL];
     if (dataDirMig.migrated && dataDirMig.viaGit) {
       for (const p of migratedDataDirPaths(opts.repoPath)) all.push(p);
     }
@@ -258,24 +253,85 @@ Opening repo at ${opts.repoPath}...`));
   return { newCount, skippedCount, pathsWritten, committed, pushed };
 }
 
-function removeSupersededRenderedSession(
+/** Reconstruct the staging set from durable state, not this run's write log.
+ * A duplicate source can replace an untracked intermediate render, and a retry
+ * can skip a render written before an earlier git failure. Neither is reflected
+ * reliably in pathsWritten. Repair legacy index case aliases to Git's pending
+ * path spelling before committing; do not sweep unindexed files into the commit. */
+async function prepareSessionStaging(
+  git: Awaited<ReturnType<typeof ensureRepo>>,
   repoPath: string,
   idx: IndexFile,
-  currentKey: string,
-  previousPath: string,
-): boolean {
+): Promise<string[]> {
+  // Query pending work first: a no-op must not stat/stage the entire archive.
+  // --modified includes working-tree deletions; -z preserves Unicode/newlines.
+  const pending = await git.raw([
+    "ls-files", "--modified", "--others", "--exclude-standard", "-z", "--", "raw_sessions",
+  ]);
+  if (!pending) return [];
   const rawRoot = resolve(repoPath, "raw_sessions");
-  const previousAbs = resolve(repoPath, previousPath);
-  if (!previousAbs.startsWith(rawRoot + sep)) return false;
-  const shared = Object.entries(idx.entries).some(([key, entry]) =>
-    key !== currentKey && entry.relativePath === previousPath,
-  );
-  if (shared || !existsSync(previousAbs)) return false;
-  try {
-    rmSync(previousAbs);
-    return true;
-  } catch {
-    return false;
+  const ignoreCase = (await git.raw(["config", "--bool", "--default=false", "--get", "core.ignorecase"])).trim() === "true";
+  const pathKey = (path: string) => {
+    const abs = resolve(repoPath, path);
+    return ignoreCase ? abs.toLowerCase() : abs;
+  };
+  const pendingPaths = new Set(pending.split("\0").filter(Boolean));
+  const canonical = new Map<string, string | undefined>();
+  for (const path of pendingPaths) {
+    const key = pathKey(path);
+    // Never guess between multiple spellings on a misconfigured checkout.
+    canonical.set(key, canonical.has(key) ? undefined : path);
+  }
+  const referenced = new Set<string>();
+  let repaired = false;
+  for (const entry of Object.values(idx.entries)) {
+    const key = pathKey(entry.relativePath);
+    referenced.add(key);
+    const actual = canonical.get(key);
+    if (ignoreCase && actual && actual !== entry.relativePath && !pendingPaths.has(entry.relativePath)) {
+      entry.relativePath = actual;
+      repaired = true;
+    }
+  }
+  // Filtering deletions alone is insufficient: the published index must use
+  // Git's spelling even when the missing render's source could not be parsed.
+  if (repaired) saveIndex(repoPath, idx);
+  const paths = new Set<string>();
+  for (const path of pendingPaths) {
+    const abs = resolve(repoPath, path);
+    if (!abs.startsWith(rawRoot + sep)) continue;
+    // Existing files must be indexed. Missing tracked files may only be
+    // deleted remotely when the final index no longer references them.
+    if (existsSync(abs)) {
+      if (referenced.has(pathKey(path))) paths.add(path);
+    } else if (!referenced.has(pathKey(path))) {
+      paths.add(path);
+    }
+  }
+  return [...paths];
+}
+
+function removeSupersededRenderedSessions(
+  repoPath: string,
+  idx: IndexFile,
+  previousPaths: Set<string>,
+): void {
+  if (previousPaths.size === 0) return;
+  const rawRoot = resolve(repoPath, "raw_sessions");
+  // Protect the final A in A → B → A, including case-insensitive aliases.
+  // Cache canonical references once, rather than rescanning for each removal.
+  const referenced = new Set<string>();
+  for (const entry of Object.values(idx.entries)) {
+    const abs = resolve(repoPath, entry.relativePath);
+    referenced.add(abs);
+    try { referenced.add(realpathSync.native(abs)); } catch { /* missing render */ }
+  }
+  for (const previousPath of previousPaths) {
+    const previousAbs = resolve(repoPath, previousPath);
+    if (!previousAbs.startsWith(rawRoot + sep) || referenced.has(previousAbs)) continue;
+    try {
+      if (!referenced.has(realpathSync.native(previousAbs))) rmSync(previousAbs);
+    } catch { /* best-effort orphan cleanup */ }
   }
 }
 

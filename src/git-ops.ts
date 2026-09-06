@@ -1,6 +1,6 @@
 import { simpleGit, SimpleGit } from "simple-git";
-import { existsSync, mkdirSync, readdirSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 
@@ -225,7 +225,16 @@ export async function commitAndPush(
 ): Promise<{ committed: boolean; pushed: boolean; pushResult?: PushResult }> {
   if (paths.length === 0) return { committed: false, pushed: false };
   onProgress?.(`git add (${paths.length} paths)...`);
-  await git.add(paths);
+  // Keep argv bounded even during a large migration, and never interpret
+  // session filenames as pathspec globs. The private file contains paths only.
+  const stagingDir = mkdtempSync(join(tmpdir(), "memarium-git-add-"));
+  try {
+    const pathspec = join(stagingDir, "paths");
+    writeFileSync(pathspec, paths.join("\0") + "\0", { mode: 0o600 });
+    await git.raw(["--literal-pathspecs", "add", `--pathspec-from-file=${pathspec}`, "--pathspec-file-nul"]);
+  } finally {
+    rmSync(stagingDir, { recursive: true, force: true });
+  }
   const status = await git.status();
   if (status.staged.length === 0) return { committed: false, pushed: false };
   onProgress?.(`git commit (${status.staged.length} staged)...`);
