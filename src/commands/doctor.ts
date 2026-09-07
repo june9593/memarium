@@ -9,7 +9,7 @@ import { aggregatedPath } from "../aggregated-store.js";
 /**
  * `memarium doctor` — opinionated health check. Prints a one-line status
  * for each thing that can drift between the user's machines, then a
- * summary with the precise commands to fix anything red.
+ * summary with remediation steps for anything that needs attention.
  *
  * What we check:
  *   1. CLI version on PATH (`memarium --version`)
@@ -31,7 +31,7 @@ interface CheckResult {
   name: string;
   status: "ok" | "warn" | "fail" | "info";
   detail: string;
-  /** Optional shell command that fixes this. */
+  /** Optional remediation guidance, which may include shell commands. */
   fix?: string;
 }
 
@@ -164,23 +164,24 @@ export async function doctorCmd(): Promise<void> {
     }
 
     // 5. 0.5.x spool residue check. memarium 0.6 only writes .md per session.
-    //    Existing .raw.json and .jsonl from 0.5.x are dead weight; suggest cleanup.
+    //    Format alone does not prove a legacy file is redundant or recoverable.
     if (repoExists) {
       const residue = countResidue(config.repoPath);
       if (residue.rawJsonCount + residue.jsonlCount > 0) {
         const lines = [
           `${residue.rawJsonCount} .raw.json files, ${residue.jsonlCount} .jsonl files in spool`,
-          `(memarium 0.6 only writes .md — these are 0.5.x residue)`,
+          `(current sync writes .md; legacy files may be the only remaining source copy)`,
         ];
         checks.push({
           name: "0.5.x spool residue",
           status: "warn",
           detail: lines.join(" — "),
-          fix:
-            `find "${join(config.repoPath, "raw_sessions")}" -name "*.jsonl" -delete && ` +
-            `find "${join(config.repoPath, "raw_sessions")}" -name "*.raw.json" -delete && ` +
-            `rm "${join(config.repoPath, ".memarium/index.json")}" && ` +
-            `memarium sync   # regenerates index + new-format .md per session`,
+          fix: [
+            "Back up the entire session repo, including its index and retained Markdown, before cleanup.",
+            "Do not delete or reset .memarium/index.json or wipe raw_sessions/; the store can contain multiple projects and source-less sessions.",
+            "Update and run normal memarium sync on the source device where the original sessions are still available.",
+            "Verify each legacy file against its complete, readable, indexed Markdown; manually remove only individually verified redundant siblings. Keep anything that cannot be verified or reconstructed.",
+          ].join("\n  "),
         });
       }
 
