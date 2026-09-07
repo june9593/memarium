@@ -13,7 +13,8 @@ Codex Desktop/interactive CLI sessions, plus the read-side commands (`resume`, `
 No LLM calls — pure I/O.
 
 The **digest + recall** half lives in the separate
-`june9593/memarium-plugin` repo (`~/code/memarium-plugin/`), installed
+[`june9593/memarium-plugin`](https://github.com/june9593/memarium-plugin) repo
+(local checkout location varies), installed
 into Claude Code via `/plugin install memarium`. That's where the typed
 memory (episodes + semantic/procedural/core facts, entities, qa), the
 /memarium write skill, and the /memarium-recall read skill live.
@@ -32,7 +33,6 @@ src/
     upgrade.ts               # `memarium upgrade` = npm install -g memarium@latest
     doctor.ts                # health check
     workflow.ts              # CI aggregate workflow installer (writes to main)
-    crypt.ts                 # git clean/smudge filter setup
     prune.ts                 # delete orphan raw_sessions md (0.7.1+)
     cat.ts, list.ts, show.ts # read-side CLI
     resume/
@@ -51,7 +51,7 @@ src/
     base.ts                  # SourceAdapter interface
   writer.ts                  # 0.7.0 two-pass renderer: frontmatter + manifest + TOC + body
   aggregated-store.ts        # 0.8.0 — git-worktree-based read-only main overlay (P7)
-  crypto.ts, git-ops.ts, config.ts, index-store.ts, types.ts, ...
+  git-ops.ts, config.ts, index-store.ts, types.ts, ...
 
 assets/
   workflows/memarium-aggregate.yml   # template; `memarium workflow init` writes it to main
@@ -91,8 +91,8 @@ marketing-site/                      # project landing page (live at Pages)
 
 4. **Per-clone read-only overlay** (0.8.0, `src/aggregated-store.ts`):
    sync refreshes a second git worktree at `~/.memarium/aggregated/`
-   tracking `origin/main`. Shares `.git` with `~/.memarium/session-repo/`
-   so the smudge filter is inherited. `list-sessions` and `resume` read
+   tracking `origin/main`. It shares Git storage and configuration with
+   `~/.memarium/session-repo/`. `list-sessions` and `resume` read
    both indices; own wins on collision. **Don't try to commit anything
    to that worktree** — it's CI's territory (merge-books.mjs writes it
    on main).
@@ -122,8 +122,7 @@ There is **no `.claude-plugin/` directory** in this repo anymore (moved to
 memarium-plugin since the 0.5 slim split) and **no `scripts/sync-plugin-version.mjs`**.
 Just bump `package.json` and tag. No manifests to mirror.
 
-**Then stop.** `npm publish` is a manual step the maintainer runs himself (OTP
-gate). Don't suggest "now do `npm publish`" — just say the tag is
+**Then stop.** The maintainer handles `npm publish` manually (OTP gate). Don't suggest "now do `npm publish`" — just say the tag is
 ready.
 
 Bump rules:
@@ -133,8 +132,8 @@ Bump rules:
 
 ## Testing
 
-- Vitest, 230+ tests (count climbs with each feature; `npx vitest run` for
-  the actual current count). Add tests for every behavioral change.
+- Vitest; run `npx vitest run` for the current test count. Add tests for
+  every behavioral change.
 - Tests use `mkdtempSync` + `vi.stubEnv("HOME", ...)` to sandbox file
   system + config; no test should touch real `~/.claude`, `~/.codex`, or `~/.memarium`.
 - For tests that involve git, build a fixture local repo with `git init`
@@ -170,9 +169,11 @@ Bump rules:
 ## Where to find more
 
 - Public docs: `README.md` (rendered on github.com/june9593/memarium)
-- Plugin docs: `~/code/memarium-plugin/README.md` + its `skills/memarium/SKILL.md`
-- the maintainer's working roadmap: `docs/superpowers/roadmap.md` (gitignored;
-  audit it periodically — most "open" items there have actually
-  shipped, the roadmap just lags behind)
+- Plugin docs: its [README](https://github.com/june9593/memarium-plugin/blob/main/README.md)
+  and [digest skill](https://github.com/june9593/memarium-plugin/blob/main/skills/memarium/SKILL.md);
+  locate the user's actual checkout rather than assuming a home-directory path
+- Maintainer's working queue: `docs/superpowers/roadmap.md` (gitignored);
+  verify its dated status against code and live PRs. Archived notes preserve
+  rationale, not active instructions.
 - Design specs: `docs/superpowers/specs/` (also gitignored)
 - License: MIT.

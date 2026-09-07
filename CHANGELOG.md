@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.17.6 — 2026-09-07
+
+### Align doctor migration advice with data-preserving cleanup
+
+- Replace the legacy-spool `find -delete` and index-reset recommendation with
+  backup-first guidance. Keep source-less/shared sessions and remove only
+  individually verified redundant siblings after checking readable indexed Markdown.
+- Explain that a legacy format alone does not make a file disposable; normal
+  sync belongs on the device that still has the original source sessions.
+- Add isolated command-output regressions for mixed/single legacy formats and
+  a clean spool, including byte-for-byte preservation of the fixture store.
+
+Only diagnostic guidance changes; doctor remains read-only and its residue
+warning/exit policy is unchanged. No cleanup or sync algorithm is modified.
+
+## 0.17.5 — 2026-09-07
+
+### Documentation closeout
+
+- Replace obsolete whole-spool wipe advice with backup-first, source-aware
+  migration guidance; explain what orphan-file prune does and does not do.
+- Clarify that sync transports plugin-generated memory and that standalone plugin
+  finalize can manage the spool Git lifecycle.
+- Remove references to deleted crypto commands/modules and assumed local plugin
+  checkout paths; keep CLAUDE.md and AGENTS.md aligned.
+
+Documentation and release metadata only; no CLI runtime logic changed.
+
 ## 0.17.4 — 2026-09-06
 
 ### Recover symlink entry casing without following the target
