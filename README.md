@@ -103,6 +103,7 @@ memarium config --map-path /Users/alice=/Users/bob
 | `memarium config [--map-path FROM=TO]` | Read or modify `~/.memarium/config.json`. |
 | `memarium upgrade` | `npm install -g memarium@latest`. |
 | `memarium doctor` | Health check: CLI, config, spool state, plugin install status. |
+| `memarium prune [--apply]` | Preview unindexed rendered Markdown; delete only with `--apply`. Does not rescan sources. |
 | `memarium workflow <init\|...>` | Install GitHub Actions for cross-device aggregation. |
 | `memarium list` | List sessions in spool (simple table). |
 | `memarium show <ref>` | Print one session's markdown to stdout. |
@@ -116,9 +117,11 @@ memarium config --map-path /Users/alice=/Users/bob
   - `.memarium/index.json` — spool index (co-owned with the plugin)
   - `memory/` and `.memarium/index.memory.json` (+ `index.entity.json` / `index.qa.json`) — written by the plugin if you have it installed
 
-The npm CLI does not touch `memory/` or the plugin's memory indexes — those
-are the plugin's domain. The plugin in turn does not touch `.git/` or
-`config.json` — those are sync's.
+The plugin generates typed-memory records; the npm CLI transports those files
+and indexes along with sessions rather than performing the digest itself.
+The standalone plugin can also initialize the spool Git repo and commit/push
+its allowlisted files through `finalize`. CLI setup/configuration manages
+`config.json`; pending memory proposals and usage counters remain device-local.
 
 ## Migration from v0.4.x
 
@@ -141,13 +144,13 @@ resume` reads this `.md` directly; for sessions larger than ~200 KB it
 embeds only the manifest + TOC inline and points Claude at the on-disk
 file (chunked mode, 0.7.0+).
 
-If you have a pre-0.6 spool with old `.raw.json` / `.jsonl` siblings
-sitting around, the cleanest path is to wipe and re-sync:
-
-```sh
-rm -rf ~/.memarium/session-repo/raw_sessions
-memarium sync
-```
+If a pre-0.6 spool still contains `.raw.json` or `.jsonl` siblings, keep a
+backup and verify the indexed Markdown before removing any redundant legacy
+files. Upgrade and run normal sync on the device that still has the source
+sessions. **Do not delete the whole `raw_sessions/` tree or reset the index to
+force a migration:** the shared store can contain other projects and the only
+remaining copy of sessions whose sources are gone. Older siblings are not used
+by current resume; remove only individually verified redundant files after backup.
 
 If your repo also accumulated duplicate `.md` files or `1970-01-01/`
 empty-shell dirs from the 0.5–0.7.0 Copilot extractor bugs, run
@@ -160,7 +163,7 @@ See [CHANGELOG](./CHANGELOG.md) for the full breaking-change list.
 - `src/` — TypeScript source
   - `commands/` — one file per CLI subcommand
   - `commands/resume/` — list-sessions, resume, path-rewrite, config-pathmap
-  - `digest/{project-filter,session-signal}.ts` — sync-side filtering helpers (the rest of the dir was moved to the plugin)
+  - `digest/` — manifest/TOC rendering helpers plus project/session filtering; shared contracts are mirrored into the plugin
   - `sources/` — Claude Code, Copilot, and Codex adapters
 - `tests/` — vitest, parallel structure to src/
 - `assets/{workflows,scripts}` — GitHub Actions YAML + cross-device aggregate script

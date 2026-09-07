@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.17.5 — 2026-09-07
+
+### Documentation closeout
+
+- Replace obsolete whole-spool wipe advice with backup-first, source-aware
+  migration guidance; explain what orphan-file prune does and does not do.
+- Clarify that sync transports plugin-generated memory and that standalone plugin
+  finalize can manage the spool Git lifecycle.
+- Remove references to deleted crypto commands/modules and assumed local plugin
+  checkout paths; keep CLAUDE.md and AGENTS.md aligned.
+
+Documentation and release metadata only; no CLI runtime logic changed.
+
 ## 0.17.4 — 2026-09-06
 
 ### Recover symlink entry casing without following the target

@@ -1,6 +1,6 @@
 {
   "name": "memarium",
-  "version": "0.17.4",
+  "version": "0.17.5",
   "description": "Cross-device sync + resume for AI coding sessions (Claude Code, Copilot Chat, and Codex). Companion to the memarium Claude Code plugin which provides digest + recall.",
   "type": "module",
   "license": "MIT",
